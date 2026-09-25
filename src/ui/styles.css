@@ -1370,6 +1370,12 @@ button {
   pointer-events: none;
 }
 
+.map-node svg {
+  width: 46px;
+  height: 46px;
+  filter: drop-shadow(0 3px 0 rgba(43, 20, 87, 0.5));
+}
+
 .map-node .mn-name {
   padding: 2px 8px;
   border-radius: 10px;

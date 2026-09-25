@@ -1,4 +1,4 @@
-import { svg } from './icons';
+import { portraitSvg, svg } from './icons';
 import { HOTEL_SHORT, T, fmt, fmtTime } from '../config/strings';
 import { MAX_LEVEL, nextThreshold, GEM_PRICES } from '../config/balance';
 import type { Game } from '../game/game';
@@ -173,7 +173,10 @@ export class Hud {
     // Sondergast
     const sc = g.specials.cardInfo;
     this.set('special', sc ? '' : 'none', 'display');
-    if (sc) this.set('specialT', sc.time >= 0 ? fmtTime(sc.time) : sc.name.split(' ').pop()!);
+    if (sc) {
+      this.set('specialT', sc.time >= 0 ? fmtTime(sc.time) : sc.name.split(' ').pop()!);
+      this.set('specialFace', portraitSvg(g.guests.makeSpecialLook(sc.idx)), 'html');
+    }
     const vip = g.specials.vipGuest;
     this.set('vip', vip && vip.vipTime > 0 ? '' : 'none', 'display');
     if (vip) this.set('vipT', fmtTime(vip.vipTime));

@@ -350,3 +350,44 @@ export function drawIcon(ctx: CanvasRenderingContext2D, name: string, x: number,
   }
   ctx.restore();
 }
+
+const hx = (n: number) => '#' + n.toString(16).padStart(6, '0');
+
+/** Porträt einer Figur (für Sondergast-Karten) aus ihren Farben */
+export function portraitSvg(look: { skin: number; hair: number; hairStyle: string; shirt: number; vest?: number; hat?: { kind: string; color: number; band?: number }; sunglasses?: boolean }): string {
+  const skin = hx(look.skin);
+  const hair = hx(look.hair);
+  const body = hx(look.vest ?? look.shirt);
+  let hairBack = '';
+  let hairFront = '';
+  switch (look.hairStyle) {
+    case 'long':
+      hairBack = `<path d="M14 34Q12 12 32 10Q52 12 50 34V52H14Z" fill="${hair}"/>`;
+      break;
+    case 'bun':
+      hairBack = `<circle cx="32" cy="9" r="7" fill="${hair}"/>`;
+      break;
+    case 'pony':
+      hairBack = `<path d="M46 22Q58 30 52 46" stroke="${hair}" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+      break;
+    case 'curly':
+      hairBack = [10, 20, 32, 44, 54].map((x, i) => `<circle cx="${x}" cy="${i % 2 ? 14 : 18}" r="8" fill="${hair}"/>`).join('');
+      break;
+  }
+  if (look.hairStyle === 'spiky') hairFront = `<path d="M16 26L18 12L24 20L28 8L33 18L39 8L42 20L47 12L48 26Z" fill="${hair}"/>`;
+  else if (look.hairStyle !== 'bald') hairFront = `<path d="M15 28Q15 12 32 12Q49 12 49 28Q40 20 32 21Q22 21 15 28Z" fill="${hair}"/>`;
+  let hat = '';
+  const h = look.hat;
+  if (h) {
+    const c = hx(h.color);
+    if (h.kind === 'nurse') hat = `<rect x="22" y="6" width="20" height="9" rx="2" fill="${c}" stroke="#2b1457" stroke-width="2"/><path d="M30 8h4v2h2v3h-2v2h-4v-2h-2v-3h2z" fill="#e8203a"/>`;
+    else if (h.kind === 'chef') hat = `<rect x="20" y="10" width="24" height="8" fill="${c}" stroke="#2b1457" stroke-width="2"/><circle cx="26" cy="8" r="6" fill="${c}"/><circle cx="38" cy="8" r="6" fill="${c}"/><circle cx="32" cy="5" r="6" fill="${c}"/>`;
+    else if (h.kind === 'crown') hat = `<path d="M20 16L18 4L26 10L32 2L38 10L46 4L44 16Z" fill="${c}" stroke="#2b1457" stroke-width="2"/>`;
+    else if (h.kind === 'cap') hat = `<path d="M15 22Q15 8 32 8Q49 8 49 22Z" fill="${c}" stroke="#2b1457" stroke-width="2"/><rect x="30" y="19" width="24" height="5" rx="2" fill="${hx(h.band ?? h.color)}"/>`;
+    else if (h.kind === 'band') hat = `<rect x="15" y="17" width="34" height="5" rx="2" fill="${c}"/>`;
+  }
+  const eyes = look.sunglasses
+    ? `<rect x="19" y="27" width="26" height="7" rx="3" fill="#1a1a22"/>`
+    : `<circle cx="26" cy="30" r="2.6" fill="#1c1a24"/><circle cx="38" cy="30" r="2.6" fill="#1c1a24"/>`;
+  return `<svg viewBox="0 0 64 64" aria-hidden="true">${hairBack}<path d="M10 64Q10 46 32 46Q54 46 54 64Z" fill="${body}" stroke="#2b1457" stroke-width="2.5"/><circle cx="32" cy="30" r="17" fill="${skin}" stroke="#2b1457" stroke-width="2.5"/>${hairFront}${hat}${eyes}<circle cx="21" cy="36" r="3" fill="#ff9aa6" opacity=".7"/><circle cx="43" cy="36" r="3" fill="#ff9aa6" opacity=".7"/><path d="M28 39Q32 42 36 39" stroke="#8a3b3b" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+}

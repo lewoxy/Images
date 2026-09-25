@@ -4,7 +4,7 @@ import { SPECIAL_GUESTS, T } from '../config/strings';
 import type { Game } from './game';
 import type { Guest, SpecialInfo } from './guests';
 import { pickupMesh, type ItemType } from './items';
-import { svg } from '../ui/icons';
+import { portraitSvg, svg } from '../ui/icons';
 
 /**
  * Sondergäste, VIPs und Roller (§11, §13). Werbefrei: Sonderwünsche werden
@@ -121,8 +121,9 @@ export class Specials {
     }
     const reqs = ['luggage', ...pool.slice(0, SPECIAL.requests - 1)];
     const sp: SpecialInfo = { idx, name: info.name, role: info.role, requests: reqs, current: null, timer: 0, done: 0 };
-    this.active = this.g.guests.spawn({ look: this.g.guests.makeSpecialLook(idx), special: sp });
-    this.g.hud.toast(svg('star') + T.special.arrives(info.name));
+    const look = this.g.guests.makeSpecialLook(idx);
+    this.active = this.g.guests.spawn({ look, special: sp });
+    this.g.hud.toast(portraitSvg(look) + T.special.arrives(info.name));
     this.g.sfx.play('vip');
   }
 

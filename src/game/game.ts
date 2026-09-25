@@ -21,6 +21,7 @@ import { Specials } from './specials';
 import { Quests } from './quests';
 import { Guide } from './guide';
 import { Plate } from './plates';
+import { FloorMarker } from './markers';
 import { RoomRt, WCRt } from './hotel';
 import { pickupMesh, type PickupType } from './items';
 import { clearSave, loadSave, newHotelState, newSave, writeSave, type SaveState } from './state';
@@ -93,6 +94,7 @@ export class Game {
   receptionPile: MoneyPile;
   parkingPile: MoneyPile;
   pickups: Pickup[] = [];
+  markers!: { reception: FloorMarker; paper: FloorMarker; valet: FloorMarker; service: FloorMarker; trash: FloorMarker; wc: Map<number, FloorMarker> };
 
   checkinProgress = 0;
   checkinActive = false;
@@ -140,6 +142,16 @@ export class Game {
     this.guide = new Guide(this.stage.scene, this.world.mat.chevron);
     this.receptionPile = this.money.createPile('reception', P.receptionMoney.x, P.receptionMoney.z, 3, 2);
     this.parkingPile = this.money.createPile('parking', P.parkingMoney.x, P.parkingMoney.z, 3, 2);
+    const yaw = this.stage.yaw;
+    const sc = this.stage.scene;
+    this.markers = {
+      reception: new FloorMarker(sc, P.receptionPlayer.x, P.receptionPlayer.z, 2.5, 'bell', yaw),
+      paper: new FloorMarker(sc, P.paperPickup.x, P.paperPickup.z, 2.8, 'paper', yaw),
+      valet: new FloorMarker(sc, P.valetSpot.x, P.valetSpot.z, 2.5, 'parking', yaw, 'rgba(57,169,255,1)'),
+      service: new FloorMarker(sc, P.serviceBarPickup.x, P.serviceBarPickup.z, 2.3, 'champagne', yaw, 'rgba(255,95,168,1)'),
+      trash: new FloorMarker(sc, P.trash.x, P.trash.z, 2.9, 'close', yaw, 'rgba(242,48,63,1)'),
+      wc: new Map(),
+    };
     this.buildHotel();
     this.restore();
     this.applySettings();
@@ -400,6 +412,10 @@ export class Game {
           this.puff(w.view.cx, w.view.cz);
         }
         w.view.setPaperStock(w.stock);
+        if (!this.markers.wc.has(w.zone)) {
+          const pp = w.paperPos;
+          this.markers.wc.set(w.zone, new FloorMarker(this.stage.scene, pp.x, pp.z, 2.0, 'paper', this.stage.yaw, 'rgba(95,208,255,1)'));
+        }
         break;
       }
       case 'cleaner':
@@ -911,6 +927,23 @@ export class Game {
     if (this.parking.active && this.parking.progress > 0) {
       this.fx.ring('valet', () => ({ x: P.barrier.x - 2.4, y: 2.2, z: P.barrier.z }), this.parking.progress, '#39a9ff');
     }
+    // Bodenzonen
+    const mk = this.markers;
+    const tutStep = s.tutorial;
+    mk.reception.active = atDesk || (!!front && !!room && this.receptionTier === 0);
+    mk.paper.visible = this.wcs.some((w) => w.built);
+    mk.paper.active = Math.hypot(px - P.paperPickup.x, pz - P.paperPickup.z) < 1.6 || tutStep === 7;
+    for (const [zone, m] of mk.wc) {
+      const w = this.wcByZone.get(zone)!;
+      m.active = (rolls > 0 && w.stock < TOILET_STOCK_MAX) || w.stock <= 2;
+    }
+    mk.valet.visible = this.parking.active;
+    mk.valet.active = this.parking.frontWaiting && !this.parkerBuilt;
+    mk.service.visible = this.level >= 2;
+    mk.service.active = !!want;
+    mk.trash.visible = p.carried.length > 0;
+    mk.trash.active = Math.hypot(px - P.trash.x, pz - P.trash.z) < 1.5;
+    for (const m of [mk.reception, mk.paper, mk.valet, mk.service, mk.trash, ...mk.wc.values()]) m.update(dt);
   }
 
   private onCollected(v: number, pileId: string) {

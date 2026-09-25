@@ -469,7 +469,15 @@ export class World {
       const target = nearDoor ? base + Math.sign(base) * 2.3 : base;
       d.position.x += (target - d.position.x) * Math.min(1, dt * 8);
     }
-    void t;
+    // Aufzug fährt: Türen öffnen sich regelmäßig
+    if (this.elevatorDoors.length) {
+      const open = t % 9 > 6;
+      for (const d of this.elevatorDoors) {
+        const base = d.userData.baseX as number;
+        const target = open ? base + Math.sign(base - P.elevator.x) * 1.2 : base;
+        d.position.x += (target - d.position.x) * Math.min(1, dt * 5);
+      }
+    }
   }
 }
 

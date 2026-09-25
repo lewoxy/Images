@@ -493,8 +493,7 @@ export class UI {
     void g;
     return `<div class="map-wrap"><svg class="map" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#39a9ff"/>
       ${Array.from({ length: 40 }, (_, i) => `<path d="M${(i * 97) % W} ${(i * 211) % H}q10 -6 20 0" stroke="#8fd3ff" stroke-width="3" fill="none" opacity=".6"/>`).join('')}
-      ${isl}<path d="${path}" stroke="#ffd23a" stroke-width="8" stroke-dasharray="4 14" stroke-linecap="round" fill="none"/></svg>${nodes}${here}</div>
-      <style>.map-node svg{width:46px;height:46px;filter:drop-shadow(0 3px 0 rgba(43,20,87,.5))}</style>`;
+      ${isl}<path d="${path}" stroke="#ffd23a" stroke-width="8" stroke-dasharray="4 14" stroke-linecap="round" fill="none"/></svg>${nodes}${here}</div>`;
   }
 
   private characterHtml(): string {
