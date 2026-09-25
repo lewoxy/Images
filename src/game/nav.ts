@@ -2,9 +2,9 @@
  * Wegpunkt-Graph statt Navmesh (§16: „Pathfinding über feste Wegpunkt-Splines“).
  * NPCs laufen Polylinien ab; innerhalb von Zimmern/WCs hängen lokale Punkte an.
  */
-import { CELL, HALLS, P, ROWS, ZONES, cellLocal, cleanerPost, hallZ } from '../config/floorplan';
-import { ROOM, WC } from '../config/layout';
-import { ZONE_CELLS } from '../config/progression';
+import { P, ROWS, ZONES, cellLocal, cleanerPost, hallZ } from '../config/floorplan.ts';
+import { ROOM, WC } from '../config/layout.ts';
+import { ZONE_CELLS } from '../config/progression.ts';
 
 export interface Pt {
   x: number;
@@ -227,7 +227,5 @@ export function buildNav(): Nav {
   // Gehweg (für die Wegführung des Spielers zur Parkplatz-Platte)
   nav.node('SWP', P.valetSpot.x, P.valetSpot.z);
   nav.link('LEO', 'SWP');
-  void CELL;
-  void HALLS;
   return nav;
 }

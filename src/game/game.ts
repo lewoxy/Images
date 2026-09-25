@@ -145,6 +145,7 @@ export class Game {
     this.quests = new Quests(this);
     this.player = new Player(this);
     this.guide = new Guide(this.stage.scene, this.world.mat.chevron);
+    this.money.onAdd = (v) => this.logIncome(v);
     this.receptionPile = this.money.createPile('reception', P.receptionMoney.x, P.receptionMoney.z, 3, 2);
     this.parkingPile = this.money.createPile('parking', P.parkingMoney.x, P.parkingMoney.z, 3, 2);
     const yaw = this.stage.yaw;
@@ -235,7 +236,7 @@ export class Game {
     }
     for (const p of this.money.piles) {
       const v = s.piles[p.id];
-      if (v) this.money.add(p, v);
+      if (v) this.money.add(p, v, false);
     }
     this.levelShown = s.levelClaimed;
     this.refreshPlates();
@@ -557,7 +558,6 @@ export class Game {
       const room = this.specials.active?.room;
       if (room) this.money.add(room.tipPile, r.cash);
       else this.money.add(this.receptionPile, r.cash);
-      this.logIncome(r.cash);
     }
     if (r.candy) {
       this.save.candy += r.candy;
@@ -573,7 +573,6 @@ export class Game {
 
   addReceptionCash(v: number) {
     this.money.add(this.receptionPile, v);
-    this.logIncome(v);
   }
 
   onVipCheckedIn(_g: unknown) {
@@ -585,7 +584,6 @@ export class Game {
   onCarParked() {
     const v = Math.round(PARKING_INCOME.pay * this.incomeMult);
     this.money.add(this.parkingPile, v);
-    this.logIncome(v);
     this.save.stats.cars++;
     this.events.emit('car', {});
     this.sfx.play('car');

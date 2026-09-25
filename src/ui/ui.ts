@@ -212,7 +212,7 @@ export class UI {
   }
 
   // ------------------------------------------------------------ Zimmer-Design
-  showDesign(room: RoomRt, tier: number, done: (design: number) => void) {
+  showDesign(_room: RoomRt, tier: number, done: (design: number) => void) {
     const g = this.g;
     const inc = ROOM_INCOME[tier];
     const stars = tier === 2 ? STARS.roomTier2 : STARS.roomTier3;
@@ -238,7 +238,6 @@ export class UI {
        <div class="designs">${card(0)}${card(1)}${card(2)}</div>`,
       { closable: false },
     );
-    void room;
     this.on(el, '[data-d]', (b) => {
       const d = Number(b.dataset.d);
       if (d === 2) {
@@ -268,7 +267,7 @@ export class UI {
         g.save.gems -= GEM_PRICES.offlineDouble;
       }
       // Offline-Geld liegt physisch an der Rezeption (Regel 1: Geld muss abgeholt werden)
-      g.money.add(g.receptionPile, amount * (dbl ? 2 : 1));
+      g.money.add(g.receptionPile, amount * (dbl ? 2 : 1), false);
       g.hud.toast(`${svg('cash')} Das Geld liegt an der Rezeption!`);
       close();
     });
@@ -463,7 +462,6 @@ export class UI {
   }
 
   private mapHtml(): string {
-    const g = this.g;
     const n = HOTEL_NAMES.length;
     const W = 400;
     const stepY = 150;
@@ -494,7 +492,6 @@ export class UI {
       })
       .join('');
     const here = `<div class="map-here" style="left:${(pts[0].x / W) * 100}%;top:${((pts[0].y - 46) / H) * 100}%">${T.youAreHere}</div>`;
-    void g;
     return `<div class="map-wrap"><svg class="map" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#39a9ff"/>
       ${Array.from({ length: 40 }, (_, i) => `<path d="M${(i * 97) % W} ${(i * 211) % H}q10 -6 20 0" stroke="#8fd3ff" stroke-width="3" fill="none" opacity=".6"/>`).join('')}
       ${isl}<path d="${path}" stroke="#ffd23a" stroke-width="8" stroke-dasharray="4 14" stroke-linecap="round" fill="none"/></svg>${nodes}${here}</div>`;

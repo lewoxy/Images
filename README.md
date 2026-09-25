@@ -26,6 +26,11 @@ npm run build:single # eine einzige HTML-Datei: dist-single/hotel-hektik.html
 npm test             # Balancing- und Freischaltgraph-Tests (Node ≥ 22.18)
 ```
 
+Die Datei aus `npm run build:single` enthält alles (Code, Styles, Schriften) und
+läuft ohne Server direkt im Browser – praktisch zum Verschicken oder zum
+Hochladen auf einen beliebigen Webspace. `dist/` lässt sich ebenso statisch
+hosten (relative Pfade, z. B. GitHub Pages).
+
 **Steuerung:** Auf dem Handy irgendwo auf den Bildschirm tippen und ziehen
 (schwebender Stick), am Rechner WASD/Pfeiltasten oder Maus ziehen. Alle
 Aktionen passieren durch **Betreten** – Kaufplatten, Tresen, Schmutzstellen,

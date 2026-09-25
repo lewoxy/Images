@@ -224,6 +224,6 @@ export const LEVEL_FEATURES: Record<number, { icon: string; text: string }[]> = 
   8: [
     { icon: 'trophy', text: 'Hotel komplett!' },
     { icon: 'elevator', text: 'Aufzug & Lounge' },
-    { icon: 'hotel', text: 'Neuer Durchlauf' },
+    { icon: 'hotel', text: 'Neuer Durchlauf (nach dem Aufzug)' },
   ],
 };

@@ -3,7 +3,7 @@ import { GeoBuilder, vcMaterial } from '../world/geo';
 import * as PR from '../world/props';
 import { CAR_COLORS } from '../config/palette';
 import { LANE_FAR, LANE_NEAR, P } from '../config/floorplan';
-import { PARKER_RATE, PARKING_INCOME, PLAYER_PARK_RATE } from '../config/balance';
+import { PARKER_RATE, PLAYER_PARK_RATE } from '../config/balance';
 import type { Game } from './game';
 
 /**
@@ -138,7 +138,6 @@ export class Parking {
         front.customer = false;
         this.armOpenT = 1.6;
         this.g.onCarParked();
-        void PARKING_INCOME;
       }
     } else if (!ready) {
       this.progress = Math.max(0, this.progress - dt);

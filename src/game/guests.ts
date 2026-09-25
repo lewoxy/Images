@@ -7,7 +7,6 @@ import { cellKey, type Pt } from './nav';
 import type { RoomRt, WCRt } from './hotel';
 import type { Game } from './game';
 import { svg } from '../ui/icons';
-import { ZONE_CELLS } from '../config/progression';
 
 export type GuestState =
   | 'arrive'
@@ -285,6 +284,7 @@ export class GuestManager {
     gst.ch.pose = 'idle';
     gst.stall = -1;
     this.g.money.add(wc.pile, Math.round(TOILET_INCOME.pay * this.g.incomeMult));
+    this.g.save.stats.toilets++;
     this.g.events.emit('toilet', { zone: wc.zone });
     const u = WC.stalls[s];
     gst.walk([wc.w(u, WC.stallEntryV), wc.w(u, 0.4), wc.w(WC.doorIn.u, WC.doorIn.v), wc.w(WC.doorOut.u, WC.doorOut.v)], () => this.leave(gst));
@@ -409,4 +409,3 @@ export class GuestManager {
   }
 }
 
-void ZONE_CELLS;

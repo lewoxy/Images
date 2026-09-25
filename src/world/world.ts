@@ -411,6 +411,7 @@ export class World {
       lb.group((g) => PR.trafficCone(g), -8, 0, lr.z0 + 1.2);
       lb.group((g) => PR.trafficCone(g), -27, 0, lr.z0 + 1.6);
       this.loungeCol.push(this.col.add({ x0: -33, x1: -3.1, z0: lr.z0 - 0.4, z1: lr.z0 }));
+      this.loungeCol.push(this.col.add({ x0: -33, x1: -3.1, z0: lr.z1 - 0.12, z1: lr.z1 + 0.12 }));
     }
     // Rückwand der Lounge zum Mittelflur hin schließen
     this.loungeCol.push(this.col.add({ x0: -3.25, x1: -3, z0: lr.z0, z1: lr.z1 }));
@@ -442,6 +443,9 @@ export class World {
       // Mittelflur-Seite der Zone ebenfalls sperren
       const sx = side * SPINE_HALF;
       col.push(this.col.add({ x0: sx - 0.15, x1: sx + 0.15, z0: r.z0, z1: r.z1 }));
+      // Rückseite (zur Nachbarreihe) – sonst käme man über unbebaute Zellen hinein
+      const bz = d.out === 1 ? r.z0 : r.z1;
+      col.push(this.col.add({ x0: r.x0, x1: r.x1, z0: bz - 0.12, z1: bz + 0.12 }));
       this.zoneFences.set(zone, { obj, col });
     }
     // Reinigungswagen am Posten

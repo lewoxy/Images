@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GeoBuilder, vcMaterial } from '../world/geo';
 import * as PR from '../world/props';
-import { C } from '../config/palette';
 
 /** Tragbare Gegenstände und Boden-Pickups. */
 
@@ -133,4 +132,3 @@ export const ITEM_ICON: Record<ItemType, string> = {
   luggage: 'luggage',
 };
 
-void C;

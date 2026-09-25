@@ -94,8 +94,12 @@ export class MoneySystem {
     return p;
   }
 
-  add(p: MoneyPile, amount: number) {
+  /** Wird bei jedem neuen Geld aufgerufen (Einnahmenstatistik) */
+  onAdd: ((amount: number) => void) | null = null;
+
+  add(p: MoneyPile, amount: number, countAsIncome = true) {
     if (amount <= 0) return;
+    if (countAsIncome) this.onAdd?.(amount);
     let rest = Math.round(amount);
     while (rest > 0) {
       const v = Math.min(BUNDLE_VALUE, rest);
