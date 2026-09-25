@@ -28,6 +28,7 @@ import { clearSave, loadSave, newHotelState, newSave, writeSave, type SaveState 
 import {
   BACKPACK_UPGRADES,
   LEVELS,
+  LEVEL_RES_BONUS,
   OFFLINE,
   PARKING_INCOME,
   PLATE_DELAY,
@@ -113,6 +114,10 @@ export class Game {
   timeScale = 1;
   /** Debug/Tests: keine Modals, Level werden automatisch abgeholt */
   silent = false;
+  private perf = { t: 0, acc: 0, frames: 0, checked: false };
+  private grantStack = 0;
+  private grantAt = -1;
+  private debug = false;
   private started = false;
 
   constructor() {
@@ -156,7 +161,28 @@ export class Game {
     this.restore();
     this.applySettings();
     this.bindLifecycle();
-    if (params.has('debug')) this.debugSetup(params);
+    if (params.has('debug')) {
+      this.debug = true;
+      this.debugSetup(params);
+    }
+  }
+
+  /** Schwache Geräte: nach einigen Sekunden unter ~38 FPS automatisch die Auflösung senken */
+  private autoQuality(rawDt: number) {
+    const pf = this.perf;
+    if (pf.checked || this.debug || !this.save.settings.quality || document.hidden) return;
+    pf.t += rawDt;
+    if (pf.t < 2.5) return; // Anlaufphase (Shader, Texturen) ignorieren
+    pf.frames++;
+    pf.acc += rawDt;
+    if (pf.acc < 5) return;
+    const fps = pf.frames / pf.acc;
+    if (fps < 38) {
+      this.save.settings.quality = false;
+      this.applySettings();
+      this.hud.toast(`${svg('gear')} Grafik für flüssigeres Spielen angepasst`);
+    }
+    pf.checked = true;
   }
 
   // ================================================================ Aufbau
@@ -482,16 +508,19 @@ export class Game {
       this.levelShown++;
       if (this.silent) {
         const def = LEVELS.find((l) => l.level === this.levelShown)!;
-        this.claimLevel(this.levelShown, def.cash, def.tokens);
+        const rb = LEVEL_RES_BONUS[this.levelShown];
+        this.claimLevel(this.levelShown, def.cash, def.tokens, rb?.candy ?? 0, rb?.toiletpaper ?? 0);
       } else this.ui.queueLevelUp(this.levelShown);
     }
   }
 
-  claimLevel(level: number, cash: number, tokens: number) {
+  claimLevel(level: number, cash: number, tokens: number, candy = 0, toiletpaper = 0) {
     const s = this.save;
     s.levelClaimed = Math.max(s.levelClaimed, level);
     this.grant('cash', cash);
     this.grant('tokens', tokens);
+    this.grant('candy', candy);
+    this.grant('toiletpaper', toiletpaper);
     this.events.emit('levelUp', { level });
     this.refreshPlates();
     this.quests.refill();
@@ -514,7 +543,11 @@ export class Game {
     else s.toiletpaper += amount;
     const icon = type === 'cash' ? 'cash' : type === 'gems' ? 'gem' : type === 'tokens' ? 'token' : type;
     this.hud.bump(type as 'cash');
-    this.fx.float(this.player.x, 2.6, this.player.z, `+${fmt(amount)} ${svg(icon)}`, 'big', 1.4, 60);
+    // mehrere gleichzeitige Belohnungen übereinander staffeln
+    const now = this.time;
+    this.grantStack = now - this.grantAt < 0.4 ? this.grantStack + 1 : 0;
+    this.grantAt = now;
+    this.fx.float(this.player.x, 2.6 + this.grantStack * 0.75, this.player.z, `+${fmt(amount)} ${svg(icon)}`, 'big', 1.5, 60);
     this.events.emit('currency', { type });
   }
 
@@ -647,7 +680,14 @@ export class Game {
 
   private guideTarget(): Pt | null {
     const step = this.quests.tutorialStep;
-    if (step) return step.target(this);
+    if (step) {
+      if (this.quests.tutorialMissing > 0) {
+        // Erst Geld einsammeln, sonst Gäste einchecken
+        const pile = this.money.piles.filter((p) => p.bundles.length > 0).sort((a, b) => b.total - a.total)[0];
+        return pile ? { x: pile.x, z: pile.z } : { ...P.receptionPlayer };
+      }
+      return step.target(this);
+    }
     if (this.guideActive) {
       const list = this.finderList();
       const p = list[this.finderIndex % Math.max(1, list.length)];
@@ -666,6 +706,7 @@ export class Game {
 
   // ================================================================ Hauptschleife
   update(rawDt: number) {
+    this.autoQuality(rawDt);
     const dt = rawDt * this.timeScale;
     this.time += dt;
     this.save.stats.playSeconds += rawDt;
@@ -1017,7 +1058,7 @@ export class Game {
       this.save.toiletpaper = Number(params.get('res'));
     }
     if (params.has('skiptut')) this.save.tutorial = -1;
-    (window as unknown as { game: Game }).game = this;
+    (window as unknown as { hotel: Game }).hotel = this;
   }
 
   /** Für Tests/Debug: alle verfügbaren Platten sofort kaufen */

@@ -153,6 +153,10 @@ export class Hud {
     this.set('v-tokens', fmt(s.tokens));
     this.set('v-candy', fmt(s.candy));
     this.set('v-toiletpaper', fmt(s.toiletpaper));
+    // Ressourcen erst zeigen, wenn sie eine Rolle spielen (ab Level 2 oder sobald vorhanden)
+    const showRes = g.level >= 2 || s.candy > 0 || s.toiletpaper > 0;
+    this.set('cur-candy', showRes ? '' : 'none', 'display');
+    this.set('cur-toiletpaper', showRes ? '' : 'none', 'display');
     const lvl = g.level;
     this.set('lvlNum', lvl);
     const next = nextThreshold(lvl);
@@ -196,7 +200,9 @@ export class Hud {
     const step = g.quests.tutorialStep;
     if (step) {
       const prog = step.progress ? step.progress(g) : '';
-      this.set('banner', `${svg('quests')}<span>${step.text}${prog ? ` <span class="tb-prog">${prog}</span>` : ''}</span>`, 'html');
+      const miss = g.quests.tutorialMissing;
+      const extra = miss > 0 ? `<br><span class="tb-prog">${T.tutorialNeedCash(fmt(miss))}</span>` : '';
+      this.set('banner', `${svg('quests')}<span>${step.text}${prog ? ` <span class="tb-prog">${prog}</span>` : ''}${extra}</span>`, 'html');
       this.banner.classList.remove('hidden');
     } else {
       this.banner.classList.add('hidden');

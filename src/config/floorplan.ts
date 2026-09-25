@@ -121,7 +121,7 @@ export const P = {
     { x: -1.6, z: -2.6 },
     { x: 1.6, z: -2.6 },
   ],
-  receptionMoney: { x: -5.3, z: -3.5 },
+  receptionMoney: { x: -3.7, z: -3.9 },
   receptionPlate: { x: 5.7, z: -4.4 },
   queueStart: { x: 0, z: 0.55 },
   entranceIn: { x: 1.9, z: 4.4 },

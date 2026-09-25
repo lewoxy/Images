@@ -1,7 +1,7 @@
 import { svg } from './icons';
 import { STAR_BADGE } from './hud';
 import { GAME_TITLE, HOTEL_NAMES, LEVEL_FEATURES, RES_NAMES, T, fmt, fmtTime } from '../config/strings';
-import { BACKPACK_UPGRADES, GEM_PRICES, LEVELS, PLAYER_BASE, PLAYER_UPGRADES, ROOM_INCOME, RUNS, STARS } from '../config/balance';
+import { BACKPACK_UPGRADES, GEM_PRICES, LEVELS, LEVEL_RES_BONUS, PLAYER_BASE, PLAYER_UPGRADES, ROOM_INCOME, RUNS, STARS } from '../config/balance';
 import { tierColors } from '../config/palette';
 import type { Game } from '../game/game';
 import { ACHIEVEMENTS, questText } from '../game/quests';
@@ -66,6 +66,7 @@ export class UI {
   }
 
   confetti() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const cols = ['#ffc62b', '#ff5fa8', '#39a9ff', '#3bd65a', '#a56bff', '#ff7a3d'];
     for (let i = 0; i < 60; i++) {
       const c = document.createElement('div');
@@ -178,6 +179,7 @@ export class UI {
     const cash = Math.round(def.cash * run.rewardCash);
     const tokens = Math.round(def.tokens * run.rewardTokens);
     const feats = LEVEL_FEATURES[level] ?? [];
+    const res = LEVEL_RES_BONUS[level] ?? { candy: 0, toiletpaper: 0 };
     const { el, close } = this.modal(
       `
       <div class="big-star">${STAR_BADGE}<div class="lvl-num">${level}</div></div>
@@ -187,6 +189,8 @@ export class UI {
       <div class="reward-row">
         <div class="reward stroke">${svg('cash')}${fmt(cash)}</div>
         <div class="reward stroke">${svg('token')}${tokens}</div>
+        ${res.candy ? `<div class="reward stroke">${svg('candy')}${res.candy}</div>` : ''}
+        ${res.toiletpaper ? `<div class="reward stroke">${svg('toiletpaper')}${res.toiletpaper}</div>` : ''}
       </div>
       <div style="margin-top:12px">
         <button class="btn" data-b="1">${T.collect}</button>
@@ -202,7 +206,7 @@ export class UI {
         if (g.save.gems < GEM_PRICES.levelDouble) return;
         g.save.gems -= GEM_PRICES.levelDouble;
       }
-      g.claimLevel(level, cash * (dbl ? 2 : 1), tokens * (dbl ? 2 : 1));
+      g.claimLevel(level, cash * (dbl ? 2 : 1), tokens * (dbl ? 2 : 1), res.candy * (dbl ? 2 : 1), res.toiletpaper * (dbl ? 2 : 1));
       close();
     });
   }

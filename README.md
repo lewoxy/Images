@@ -9,6 +9,13 @@ Zimmer putzen, Klopapier nachfüllen – und mit dem verdienten Geld Zimmer,
 Personal und neue Bereiche kaufen, bis das Hotel mit Aufzug und Lounge
 komplett ist.
 
+<p>
+  <img src="docs/screenshots/start.jpg" width="190" alt="Spielstart mit Tutorial und Bodennavigation">
+  <img src="docs/screenshots/lobby.jpg" width="190" alt="Lobby mit Warteschlange, Rezeption und Geldstapeln">
+  <img src="docs/screenshots/zone.jpg" width="190" alt="Ausgebaute Zimmer der Stufen 2 und 3">
+  <img src="docs/screenshots/levelup.jpg" width="190" alt="Level-Up-Fenster mit Freischaltungen und Belohnung">
+</p>
+
 ## Starten
 
 ```bash
@@ -69,6 +76,9 @@ oder 🔧 (rekonstruiert). Alle 📦-Werte sind unverändert in
   Gratis-Geschenk gibt. Ressourcen kommen von Sondergästen (ohne Gegenleistung
   bedienbar) und fallen mit kleiner Chance bei normalen Gästen ab (§12,
   Designentscheidung).
+- **Ressourcen beim Level-Up:** Zusätzlich zu Bargeld und Tokens aus
+  `LevelRewardSettings` gibt es ein paar Bonbons und Seife
+  (`LEVEL_RES_BONUS`), damit Zonen und Personal nicht an Werbevideos hängen.
 - **Toilettennutzung:** 55 % der Gäste gehen nach dem Aufenthalt zur Toilette
   ihrer Zone (abgeleitet aus den Passivwerten §5); ohne Papier gehen sie einfach.
 - **Personaltempo:** Die Unity-Tempi werden mit Faktor 1,4 auf die Weltgröße
@@ -100,6 +110,6 @@ docs/         Spezifikation v5
 
 ## Debug-Parameter
 
-`?debug` stellt das Spielobjekt als `window.game` bereit; dazu
+`?debug` stellt das Spielobjekt als `window.hotel` bereit; dazu
 `&speed=3` (Zeitraffer), `&cash=5000`, `&gems=50`, `&tokens=50`, `&res=30`,
 `&skiptut`. Im Menü lässt sich der Spielstand zurücksetzen.

@@ -93,6 +93,21 @@ export const LEVELS: { level: number; threshold: number; cash: number; tokens: n
 ];
 export const MAX_LEVEL = 8;
 
+/**
+ * 🔧 Werbefreier Klon: kleine Ressourcen-Boni beim Level-Up, damit Zonen- und
+ * Personal-Freischaltungen nicht an Werbevideos hängen (§12). Zusammen mit den
+ * Sondergästen deckt das den Bedarf (≈ 300 Bonbons, 68 Seife) auch ohne Drops.
+ */
+export const LEVEL_RES_BONUS: Record<number, { candy: number; toiletpaper: number }> = {
+  2: { candy: 5, toiletpaper: 2 },
+  3: { candy: 8, toiletpaper: 4 },
+  4: { candy: 10, toiletpaper: 5 },
+  5: { candy: 12, toiletpaper: 6 },
+  6: { candy: 14, toiletpaper: 8 },
+  7: { candy: 16, toiletpaper: 10 },
+  8: { candy: 20, toiletpaper: 0 },
+};
+
 /** 📦 §3 – Sterne je Aktion. */
 export const STARS = {
   roomBuild: 2,

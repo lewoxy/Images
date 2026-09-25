@@ -211,6 +211,8 @@ export class GuestManager {
     const bs = room.w(ROOM.bedSide.u, ROOM.bedSide.v);
     gst.place(bs.x, bs.z);
     gst.state = 'getUp';
+    // zufriedener Gast (ohne Zufriedenheitssystem – nur Rückmeldung)
+    this.g.fx.float(bs.x, 2.3, bs.z, svg(room.tier >= 3 || room.design === 2 ? 'star' : 'thumb'), '', 1.1, 40);
     const out = [room.w(ROOM.entry.u, ROOM.entry.v), room.w(ROOM.doorIn.u, ROOM.doorIn.v), room.w(ROOM.doorOut.u, ROOM.doorOut.v)];
     gst.walk(out, () => this.afterRoom(gst));
     gst.room = null;

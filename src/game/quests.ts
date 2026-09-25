@@ -16,6 +16,8 @@ export interface TutorialStep {
   done: (g: Game) => boolean;
   target: (g: Game) => Pt | null;
   progress?: (g: Game) => string;
+  /** Kaufschritt: fehlt Geld, führt die Anleitung erst zu Rezeption/Geld */
+  buyId?: string;
 }
 
 const platePos = (g: Game, id: string): Pt | null => {
@@ -24,7 +26,7 @@ const platePos = (g: Game, id: string): Pt | null => {
 };
 
 export const TUTORIAL: TutorialStep[] = [
-  { text: T.tutorial[0], done: (g) => g.bought.has('zone_1.room_02#1'), target: (g) => platePos(g, 'zone_1.room_02#1') },
+  { text: T.tutorial[0], done: (g) => g.bought.has('zone_1.room_02#1'), target: (g) => platePos(g, 'zone_1.room_02#1'), buyId: 'zone_1.room_02#1' },
   { text: T.tutorial[1], done: (g) => g.save.stats.checkins >= 1, target: () => P.receptionPlayer },
   {
     text: T.tutorial[2],
@@ -49,9 +51,9 @@ export const TUTORIAL: TutorialStep[] = [
       return r ? `${3 - r.dirtyCount}/3` : '';
     },
   },
-  { text: T.tutorial[4], done: (g) => g.bought.has('zone_1.room_04#1'), target: (g) => platePos(g, 'zone_1.room_04#1') },
-  { text: T.tutorial[5], done: (g) => g.bought.has('zone_1.cleaner#1'), target: (g) => platePos(g, 'zone_1.cleaner#1') },
-  { text: T.tutorial[6], done: (g) => g.bought.has('zone_1.toilet#1'), target: (g) => platePos(g, 'zone_1.toilet#1') },
+  { text: T.tutorial[4], done: (g) => g.bought.has('zone_1.room_04#1'), target: (g) => platePos(g, 'zone_1.room_04#1'), buyId: 'zone_1.room_04#1' },
+  { text: T.tutorial[5], done: (g) => g.bought.has('zone_1.cleaner#1'), target: (g) => platePos(g, 'zone_1.cleaner#1'), buyId: 'zone_1.cleaner#1' },
+  { text: T.tutorial[6], done: (g) => g.bought.has('zone_1.toilet#1'), target: (g) => platePos(g, 'zone_1.toilet#1'), buyId: 'zone_1.toilet#1' },
   { text: T.tutorial[7], done: (g) => g.player.carried.includes('roll') || g.save.stats.paper >= 1, target: () => P.paperPickup },
   {
     text: T.tutorial[8],
@@ -125,6 +127,16 @@ export class Quests {
   get tutorialStep(): TutorialStep | null {
     const i = this.g.save.tutorial;
     return i >= 0 && i < TUTORIAL.length ? TUTORIAL[i] : null;
+  }
+
+  /** Fehlbetrag für den aktuellen Kaufschritt (0 = bezahlbar oder kein Kaufschritt) */
+  get tutorialMissing(): number {
+    const st = this.tutorialStep;
+    if (!st?.buyId) return 0;
+    const pl = this.g.plates.get(st.buyId);
+    if (!pl || pl.onT > 0) return 0;
+    const missing = pl.rest - this.g.save.cash;
+    return missing > 0.5 ? Math.ceil(missing) : 0;
   }
 
   private bump(kind: string, n: number) {

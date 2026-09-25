@@ -93,6 +93,7 @@ export const T = {
     'Bring das Klopapier zur Toilette',
   ],
   tutorialDone: 'Super! Ab jetzt findest du neue Aufträge im Auftragsbuch.',
+  tutorialNeedCash: (n: string) => `Noch ${n} Bargeld – checke Gäste ein und sammle ihr Geld`,
 
   // Quests
   quests: 'AUFTRÄGE',

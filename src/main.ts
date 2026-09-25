@@ -36,13 +36,15 @@ async function boot() {
 
   let last = performance.now();
   let errors = 0;
+  // Nur für Tests: Spiellogik ohne 3D-Rendering im Zeitraffer laufen lassen
+  const noRender = new URLSearchParams(location.search).has('norender');
   const frame = (now: number) => {
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     try {
       game.update(dt);
-      game.stage.render();
+      if (!noRender) game.stage.render();
     } catch (e) {
       // Ein Fehler in einem Frame darf das Spiel nicht einfrieren
       if (errors++ < 5) console.error(e);

@@ -1097,15 +1097,16 @@ button {
 
 .reward-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .reward {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 78px;
+  min-width: 70px;
   padding: 8px 6px;
   border-radius: 16px;
   background: rgba(46, 15, 115, 0.45);
@@ -1496,15 +1497,33 @@ button {
 }
 
 @media (max-width: 370px) {
+  .hud-top {
+    gap: 5px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
   .cur {
-    min-width: 36px;
+    min-width: 34px;
+  }
+  .cur svg {
+    width: 25px;
+    height: 25px;
   }
   .cur-val {
     font-size: 13px;
   }
   .lvl {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
+  }
+  .lvl-name {
+    display: none;
+  }
+  .lvl-info {
+    min-width: 58px;
+  }
+  .lvl-text {
+    font-size: 12px;
   }
 }
 
@@ -1547,4 +1566,30 @@ button {
   .tab span {
     display: none;
   }
+}
+
+/* Bewegung reduzieren */
+@media (prefers-reduced-motion: reduce) {
+  .confetti,
+  .zzz {
+    display: none;
+  }
+  .hint,
+  .map-here,
+  .modal,
+  .page,
+  .toast,
+  .big-star {
+    animation: none !important;
+  }
+  .toast {
+    opacity: 1;
+  }
+}
+
+button:focus-visible,
+.offer:focus-visible,
+.cur:focus-visible {
+  outline: 3px solid #ffd23a;
+  outline-offset: 2px;
 }
