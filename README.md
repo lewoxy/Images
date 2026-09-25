@@ -89,6 +89,17 @@ oder 🔧 (rekonstruiert). Alle 📦-Werte sind unverändert in
 - **Personaltempo:** Die Unity-Tempi werden mit Faktor 1,4 auf die Weltgröße
   umgerechnet; das Verhältnis Cleaner:Spieler bleibt erhalten.
 
+## Getestet
+
+- `npm test`: 13 Tests – Preistabelle, Levelschwellen und Einnahmen gegen die
+  Spezifikation, kompletter Freischaltgraph bis Level 8, Kaufkurve,
+  Erreichbarkeit aller Wegpunkte.
+- Automatisierte Durchläufe im Headless-Browser: Tutorial, alle 114 Käufe,
+  Sonderwünsche, Parkplatz, Speichern/Laden, Offline-Ertrag, Prestige,
+  Touch-Stick sowie Hoch-, Quer- und Desktop-Layout.
+- Ein Bot hat das Hotel im Zeitraffer vollständig durchgespielt (Level 8 nach
+  ≈ 150 Spielminuten, ≈ 3.700 Check-ins) – ohne hängende Gäste oder Fehler.
+
 ## Rechtliches
 
 Umgesetzt sind Spielmechaniken, Regeln und Zahlenwerte (§18). Name, Logo,
@@ -117,4 +128,5 @@ docs/         Spezifikation v5
 
 `?debug` stellt das Spielobjekt als `window.hotel` bereit; dazu
 `&speed=3` (Zeitraffer), `&cash=5000`, `&gems=50`, `&tokens=50`, `&res=30`,
-`&skiptut`. Im Menü lässt sich der Spielstand zurücksetzen.
+`&skiptut` und `&norender` (Spiellogik ohne 3D-Ausgabe, für Langzeittests).
+Im Menü lässt sich der Spielstand zurücksetzen.
