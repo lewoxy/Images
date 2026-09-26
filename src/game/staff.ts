@@ -27,7 +27,7 @@ export class Cleaner extends Agent {
     g: Game,
     public helper = false,
   ) {
-    const post = helper ? { x: 1.5, z: -7.2 } : cleanerPost(zone);
+    const post = helper ? { ...P.helperPost } : cleanerPost(zone);
     super(helper ? LOOKS.helper() : LOOKS.cleaner(), g.stage.scene, g.shadows, post.x, post.z);
     this.post = post;
     this.ch.setTool(makeMop());
@@ -88,9 +88,9 @@ export class StaffManager {
 
   setParker(on: boolean) {
     if (on && !this.parker) {
-      const p = P.valetSpot;
-      this.parker = new Agent(LOOKS.parker(), this.g.stage.scene, this.g.shadows, p.x - 0.3, p.z - 0.2);
-      this.parker.faceDir(1, 0);
+      const p = P.parkerPost;
+      this.parker = new Agent(LOOKS.parker(), this.g.stage.scene, this.g.shadows, p.x, p.z);
+      this.parker.faceDir(1, 0.4);
       this.parker.ch.pop();
     }
   }
@@ -232,7 +232,7 @@ export class StaffManager {
         const si = c.spot;
         const cleaned = r.work(si, c.workRate * dt);
         const sp = ROOM.spots[si];
-        this.g.fx.ring('cl' + r.key + si, () => ({ ...r.w(sp.u, sp.v), y: 1.6 }), r.spots[si]?.progress ?? 1, '#5fd0ff');
+        this.g.fx.ring('cl' + r.key + si, () => ({ ...r.w(sp.u, sp.v), y: 1.6 }), r.spots[si]?.progress ?? 1, '#22c8e8');
         if (cleaned) {
           this.g.onSpotCleaned(r, si, false);
           const t = this.findTask(c);

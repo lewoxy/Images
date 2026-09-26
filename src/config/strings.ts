@@ -2,7 +2,7 @@
 
 export const GAME_TITLE = 'Hotel Hektik';
 export const HOTEL_NAMES = [
-  'Pension Seeblick',
+  'Motel Seeblick',
   'Berghütte Edelweiß',
   'Stadthotel Metropol',
   'Wüstenoase',
@@ -20,7 +20,7 @@ export const HOTEL_NAMES = [
   'Märchenschloss',
   'Grandhotel Royal',
 ];
-export const HOTEL_SHORT = 'PENSION';
+export const HOTEL_SHORT = 'MOTEL';
 
 /** Ressourcen-Darstellung je Hotel (§12: intern candy/toiletpaper, pro Hotel anders dargestellt) */
 export const RES_NAMES = {

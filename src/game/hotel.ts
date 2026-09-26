@@ -47,6 +47,13 @@ export class RoomRt {
     return this.w(ROOM.bed.u, ROOM.bed.v);
   }
 
+  /** Liegeposition: Kopf zum Kopfteil (Rückwand), Rundbett etwas weiter vorn */
+  get bedPose() {
+    const dv = this.tier >= 3 ? 0.1 : -0.15;
+    const p = this.w(ROOM.bed.u, ROOM.bed.v + dv);
+    return { x: p.x, z: p.z, ry: this.view.facing };
+  }
+
   get dirtyCount() {
     return this.spots.filter((s) => s.dirty).length;
   }

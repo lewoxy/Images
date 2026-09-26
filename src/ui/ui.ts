@@ -67,7 +67,7 @@ export class UI {
 
   confetti() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const cols = ['#ffc62b', '#ff5fa8', '#39a9ff', '#3bd65a', '#a56bff', '#ff7a3d'];
+    const cols = ['#f8aa16', '#ff5fa2', '#339eff', '#4bb710', '#c989ff', '#ff7a3d'];
     for (let i = 0; i < 60; i++) {
       const c = document.createElement('div');
       c.className = 'confetti';
@@ -437,7 +437,7 @@ export class UI {
         const cl = g.staff.cleaners.find((c) => c.zone === z);
         return `<div class="card"><div class="c-icon">${svg(unlocked ? 'bed' : 'lock')}</div><div class="c-main"><div class="c-title">Zone ${z}</div>
         <div class="c-sub">${unlocked ? `${rooms.filter((r) => r.tier > 0).length}/3 Zimmer · Stufen ${rooms.map((r) => r.tier).join('/')} · ${g.wcByZone.get(z)?.built ? 'WC ✓' : 'kein WC'} · ${cl ? 'Reinigung Stufe ' + cl.tier : 'keine Reinigung'}` : 'Gesperrt'}</div></div>
-        <div class="stroke" style="font-family:var(--display);font-size:18px;color:#e68600">${stars}★</div></div>`;
+        <div class="stroke" style="font-family:var(--display);font-size:18px;color:#c77f00">${stars}★</div></div>`;
       })
       .join('');
     const prestige =
@@ -492,9 +492,9 @@ export class UI {
       })
       .join('');
     const here = `<div class="map-here" style="left:${(pts[0].x / W) * 100}%;top:${((pts[0].y - 46) / H) * 100}%">${T.youAreHere}</div>`;
-    return `<div class="map-wrap"><svg class="map" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#39a9ff"/>
+    return `<div class="map-wrap"><svg class="map" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#339eff"/>
       ${Array.from({ length: 40 }, (_, i) => `<path d="M${(i * 97) % W} ${(i * 211) % H}q10 -6 20 0" stroke="#8fd3ff" stroke-width="3" fill="none" opacity=".6"/>`).join('')}
-      ${isl}<path d="${path}" stroke="#ffd23a" stroke-width="8" stroke-dasharray="4 14" stroke-linecap="round" fill="none"/></svg>${nodes}${here}</div>`;
+      ${isl}<path d="${path}" stroke="#fecc06" stroke-width="8" stroke-dasharray="4 14" stroke-linecap="round" fill="none"/></svg>${nodes}${here}</div>`;
   }
 
   private characterHtml(): string {
@@ -505,7 +505,7 @@ export class UI {
       const next = i === s.playerUpg;
       return `<div class="card ${owned ? 'done' : ''}"><div class="c-icon">${svg(u.kind === 'speed' ? 'speed' : u.kind === 'carry' ? 'carry' : 'cash')}</div>
         <div class="c-main"><div class="c-title">${T.upgradeKinds[u.kind]}</div><div class="c-sub">${u.kind === 'magnet' ? 'Geld aus größerer Entfernung einsammeln' : u.kind === 'carry' ? 'Mehr Klopapier & Gegenstände tragen' : 'Schneller durchs Hotel'}</div></div>
-        ${owned ? `<span class="stroke" style="font-family:var(--display);color:#3bd65a">✓</span>` : `<button class="btn small" data-upg="1" ${next && s.tokens >= u.cost ? '' : 'disabled'}>${u.cost} ${svg('token')}</button>`}</div>`;
+        ${owned ? `<span class="stroke" style="font-family:var(--display);color:#4bb710">✓</span>` : `<button class="btn small" data-upg="1" ${next && s.tokens >= u.cost ? '' : 'disabled'}>${u.cost} ${svg('token')}</button>`}</div>`;
     }).join('');
     const bpNext = s.backpack < BACKPACK_UPGRADES.length ? BACKPACK_UPGRADES[s.backpack] : null;
     return `<div class="stat-grid">
@@ -517,7 +517,7 @@ export class UI {
       <div class="section-title">Verbesserungen</div>${up}
       <div class="section-title">${T.backpack}</div>
       <div class="card"><div class="c-icon">${svg('carry')}</div><div class="c-main"><div class="c-title">${T.backpack} Stufe ${s.backpack + (bpNext ? 1 : 0)}</div><div class="c-sub">${T.backpackText}</div></div>
-      ${bpNext ? `<button class="btn small" data-bp="1" ${s.tokens >= bpNext ? '' : 'disabled'}>${bpNext} ${svg('token')}</button>` : `<span class="stroke" style="font-family:var(--display);color:#3bd65a">MAX</span>`}</div>
+      ${bpNext ? `<button class="btn small" data-bp="1" ${s.tokens >= bpNext ? '' : 'disabled'}>${bpNext} ${svg('token')}</button>` : `<span class="stroke" style="font-family:var(--display);color:#4bb710">MAX</span>`}</div>
       <p style="font-size:13px;text-align:center;opacity:.85">Tokens gibt es bei jedem Level-Up und für Aufträge. Figur-Upgrades gelten hotelübergreifend.</p>`;
   }
 
@@ -532,7 +532,7 @@ export class UI {
       const pct = max ? 100 : Math.min(100, (v / target) * 100);
       return `<div class="card ${max ? 'done' : ''}"><div class="c-icon">${svg('trophy')}</div><div class="c-main"><div class="c-title">${a.label} ${'★'.repeat(done)}</div>
         <div class="prog"><i style="width:${pct}%"></i><span>${fmt(Math.min(v, target))}/${fmt(target)}</span></div></div>
-        ${max ? `<span class="stroke" style="font-family:var(--display);color:#3bd65a">MAX</span>` : `<button class="btn gem small" data-ach="${a.id}" ${can ? '' : 'disabled'}>+${a.gems[done]} ${svg('gem')}</button>`}</div>`;
+        ${max ? `<span class="stroke" style="font-family:var(--display);color:#4bb710">MAX</span>` : `<button class="btn gem small" data-ach="${a.id}" ${can ? '' : 'disabled'}>+${a.gems[done]} ${svg('gem')}</button>`}</div>`;
     }).join('');
   }
 

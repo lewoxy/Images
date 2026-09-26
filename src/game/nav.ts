@@ -2,9 +2,8 @@
  * Wegpunkt-Graph statt Navmesh (§16: „Pathfinding über feste Wegpunkt-Splines“).
  * NPCs laufen Polylinien ab; innerhalb von Zimmern/WCs hängen lokale Punkte an.
  */
-import { P, ROWS, ZONES, cellLocal, cleanerPost, hallZ } from '../config/floorplan.ts';
+import { CELLS, GATES, LANE, P, cellLocal, cleanerPost, type Gate } from '../config/floorplan.ts';
 import { ROOM, WC } from '../config/layout.ts';
-import { ZONE_CELLS } from '../config/progression.ts';
 
 export interface Pt {
   x: number;
@@ -16,6 +15,10 @@ export class Nav {
   adj: number[][] = [];
   private byKey = new Map<string, number>();
   private cache = new Map<string, number[]>();
+  /** Kanten, die eine Zonensperre kreuzen: "a:b" → Sperren-IDs */
+  private edgeGates = new Map<string, string[]>();
+  private blocked = new Set<string>();
+  gates: Gate[] = [];
 
   node(key: string, x: number, z: number): number {
     const ex = this.byKey.get(key);
@@ -43,6 +46,27 @@ export class Nav {
     if (ia === ib) return;
     if (!this.adj[ia].includes(ib)) this.adj[ia].push(ib);
     if (!this.adj[ib].includes(ia)) this.adj[ib].push(ia);
+    const tags = this.gates.filter((g) => crosses(g, this.pts[ia], this.pts[ib])).map((g) => g.id);
+    if (tags.length) this.edgeGates.set(edgeKey(ia, ib), tags);
+  }
+
+  /** Sperre schließen/öffnen (Wege durch geschlossene Sperren werden gemieden) */
+  setBlocked(gateId: string, blocked: boolean) {
+    if (blocked === this.blocked.has(gateId)) return;
+    if (blocked) this.blocked.add(gateId);
+    else this.blocked.delete(gateId);
+    this.cache.clear();
+  }
+
+  private passable(a: number, b: number) {
+    if (!this.blocked.size) return true;
+    const t = this.edgeGates.get(edgeKey(a, b));
+    return !t || !t.some((g) => this.blocked.has(g));
+  }
+
+  /** Knoten, deren Kanten eine Sperre kreuzen (für Tests) */
+  gatedEdges() {
+    return [...this.edgeGates.entries()];
   }
 
   nearest(x: number, z: number): number {
@@ -87,7 +111,7 @@ export class Nav {
       open.delete(cur);
       closed[cur] = 1;
       for (const nb of this.adj[cur]) {
-        if (closed[nb]) continue;
+        if (closed[nb] || !this.passable(cur, nb)) continue;
         const ng = g[cur] + this.dist(cur, nb);
         if (ng < g[nb]) {
           g[nb] = ng;
@@ -138,94 +162,127 @@ export class Nav {
   }
 }
 
+const edgeKey = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+
+/** Schneidet die Strecke a–b die (achsparallele) Sperrlinie? */
+export function crosses(g: Gate, a: Pt, b: Pt): boolean {
+  if (Math.abs(g.x1 - g.x0) < 1e-6) {
+    const gx = g.x0;
+    if ((a.x - gx) * (b.x - gx) >= 0) return false;
+    const t = (gx - a.x) / (b.x - a.x);
+    const z = a.z + (b.z - a.z) * t;
+    return z >= Math.min(g.z0, g.z1) - 0.01 && z <= Math.max(g.z0, g.z1) + 0.01;
+  }
+  const gz = g.z0;
+  if ((a.z - gz) * (b.z - gz) >= 0) return false;
+  const t = (gz - a.z) / (b.z - a.z);
+  const x = a.x + (b.x - a.x) * t;
+  return x >= Math.min(g.x0, g.x1) - 0.01 && x <= Math.max(g.x0, g.x1) + 0.01;
+}
+
 export const cellKey = (zone: number, cell: number) => `D${zone}.${cell}`;
 
-/** Baut den Graphen für Hotel 1 aus dem Grundriss. */
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+/** Baut den Graphen für Hotel 1 aus dem Grundriss (Flurachsen + Stichwege). */
 export function buildNav(): Nav {
   const nav = new Nav();
-  // Flurlinien
-  const hallXs: Record<number, Set<number>> = { 1: new Set([-31.2, 0, 31.2]), 2: new Set([-31.2, 0, 31.2]), 3: new Set([-31.2, 0, 31.2]) };
-  const round = (x: number) => Math.round(x * 100) / 100;
-  for (let z = 1; z <= 7; z++) {
-    const row = ROWS[ZONES[z].row];
-    for (let i = 1; i <= 4; i++) {
-      const isWC = ZONE_CELLS[z].wc === i;
-      const d = cellLocal(z, i, isWC ? WC.doorOut.u : ROOM.doorOut.u, isWC ? WC.doorOut.v : ROOM.doorOut.v);
-      hallXs[row.hall].add(round(d.x));
-    }
-    hallXs[row.hall].add(round(cleanerPost(z).x));
+  nav.gates = GATES;
+  // Punkte auf den Flurachsen sammeln
+  const top = new Set<number>([LANE.leftX, LANE.midX, LANE.rightX]);
+  const left = new Set<number>([LANE.topZ, 1.5]);
+  const right = new Set<number>([LANE.topZ, 1.5]);
+  const mid = new Set<number>([LANE.topZ, -6.0]);
+  const doorOf = (c: (typeof CELLS)[number]) =>
+    c.kind === 'wc' ? cellLocal(c.zone, c.index, WC.doorOut.u, WC.doorOut.v) : cellLocal(c.zone, c.index, ROOM.doorOut.u, ROOM.doorOut.v);
+  const laneOf = (p: Pt): { set: Set<number>; v: number; key: (v: number) => string } => {
+    if (p.z > -46.35 && p.z < -38.85) return { set: top, v: r2(p.x), key: (v) => `T:${v}` };
+    if (p.x < -26.25) return { set: left, v: r2(p.z), key: (v) => `L:${v}` };
+    if (p.x > 11.25) return { set: right, v: r2(p.z), key: (v) => `R:${v}` };
+    return { set: mid, v: r2(p.z), key: (v) => `M:${v}` };
+  };
+  const stubs: { key: string; p: Pt; lane: ReturnType<typeof laneOf> }[] = [];
+  for (const c of CELLS) {
+    const d = doorOf(c);
+    const ln = laneOf(d);
+    ln.set.add(ln.v);
+    stubs.push({ key: cellKey(c.zone, c.index), p: d, lane: ln });
   }
-  // Lounge-Reihe (4 links) hat keine Türen; Lagertür am Flur 1
-  hallXs[1].add(P.storageDoorHall.x);
-  for (const h of [1, 2, 3]) {
-    const xs = [...hallXs[h]].sort((a, b) => a - b);
-    const hz = hallZ(h);
+  for (let z = 1; z <= 7; z++) {
+    const cp = cleanerPost(z);
+    const ln = laneOf(cp);
+    ln.set.add(ln.v);
+    stubs.push({ key: `CP${z}`, p: cp, lane: ln });
+  }
+  const chain = (set: Set<number>, key: (v: number) => string, pos: (v: number) => Pt) => {
     let prev = -1;
-    for (const x of xs) {
-      const n = nav.node(`H${h}:${round(x)}`, x, hz);
+    for (const v of [...set].sort((a, b) => a - b)) {
+      const p = pos(v);
+      const n = nav.node(key(v), p.x, p.z);
       if (prev >= 0) nav.link(prev, n);
       prev = n;
     }
+  };
+  chain(top, (v) => `T:${v}`, (v) => ({ x: v, z: LANE.topZ }));
+  chain(left, (v) => `L:${v}`, (v) => ({ x: LANE.leftX, z: v }));
+  chain(right, (v) => `R:${v}`, (v) => ({ x: LANE.rightX, z: v }));
+  chain(mid, (v) => `M:${v}`, (v) => ({ x: LANE.midX, z: v }));
+  // Ecken/Kreuzungen verbinden
+  nav.link(`T:${LANE.leftX}`, `L:${LANE.topZ}`);
+  nav.link(`T:${LANE.rightX}`, `R:${LANE.topZ}`);
+  nav.link(`T:${LANE.midX}`, `M:${LANE.topZ}`);
+  for (const s of stubs) {
+    const n = nav.node(s.key, s.p.x, s.p.z);
+    nav.link(n, s.lane.key(s.lane.v));
   }
-  // Mittelflur
-  nav.link('H1:0', 'H2:0');
-  nav.link('H2:0', 'H3:0');
-  // Türen, Cleaner-Posten
-  for (let z = 1; z <= 7; z++) {
-    const row = ROWS[ZONES[z].row];
-    for (let i = 1; i <= 4; i++) {
-      const isWC = ZONE_CELLS[z].wc === i;
-      const d = cellLocal(z, i, isWC ? WC.doorOut.u : ROOM.doorOut.u, isWC ? WC.doorOut.v : ROOM.doorOut.v);
-      const n = nav.node(cellKey(z, i), d.x, d.z);
-      nav.link(n, `H${row.hall}:${round(d.x)}`);
-    }
-    const cp = cleanerPost(z);
-    const n = nav.node(`CP${z}`, cp.x, cp.z);
-    nav.link(n, `H${row.hall}:${round(cp.x)}`);
-  }
+
   // Lobby
-  nav.node('LB', 0, -7.4);
-  nav.link('LB', 'H1:0');
-  nav.node('LBR', 6.8, -6.3);
-  nav.node('LR', 7.4, 1.0);
-  nav.node('LEI', 2.1, 4.5);
-  nav.node('LEO', 2.1, 7.6);
-  nav.node('SWR', P.exitRight.x, P.exitRight.z);
-  nav.node('DF', 0, 0.55);
-  nav.link('LB', 'LBR');
-  nav.link('LBR', 'LR');
+  const node = (k: string, p: Pt) => nav.node(k, p.x, p.z);
+  node('LB', { x: LANE.midX, z: -6.0 });
+  node('LML', { x: -7.5, z: 1.5 });
+  node('DF', { x: 0, z: 1.5 });
+  node('LR', { x: 4.2, z: 1.5 });
+  node('LHJ', { x: -24.0, z: 1.5 });
+  node('RHJ', { x: 9.2, z: 1.5 });
+  node('RECEPTION', P.receptionPlayer);
+  node('RECL', { x: -3.8, z: -2.2 });
+  node('RECR', { x: 3.8, z: -2.2 });
+  node('LEI', { x: 1.0, z: 4.8 });
+  node('LEO', { x: 1.0, z: 7.4 });
+  node('FX', { x: 1.0, z: 14.3 });
+  node('SWM', { x: 1.0, z: 16.8 });
+  node('SWR', P.exitRight);
+  node('SWP', P.valetSpot);
+  node('STO', { x: -21.0, z: 0.2 });
+  node('PAPER', P.paperPickup);
+  node('SP', P.supplierPost);
+  node('SERVICE', P.serviceBarPickup);
+  node('ELEV', P.elevatorPlate);
+  nav.link('LB', 'M:-6');
+  nav.link('LB', 'LML');
+  nav.link('LB', 'RECL');
+  nav.link('LML', 'DF');
+  nav.link('DF', 'LR');
+  nav.link('LML', 'RECL');
+  nav.link('RECL', 'RECEPTION');
+  nav.link('RECEPTION', 'RECR');
+  nav.link('RECR', 'LR');
   nav.link('LR', 'LEI');
   nav.link('LEI', 'LEO');
-  nav.link('LEO', 'SWR');
-  nav.link('DF', 'LR');
-  nav.node('LBL', -6.8, -6.3);
-  nav.link('LB', 'LBL');
-  nav.node('LSD', -13.4, -3.2);
-  nav.link('LBL', 'LSD');
-  nav.node('SDL', -16.8, -3.2);
-  nav.link('LSD', 'SDL');
-  nav.node('PAPER', P.paperPickup.x, P.paperPickup.z);
-  nav.link('SDL', 'PAPER');
-  nav.node('SP', P.supplierPost.x, P.supplierPost.z);
-  nav.link('PAPER', 'SP');
-  nav.node('SDI', P.storageDoorHall.x, -7.2);
-  nav.link('SDI', 'PAPER');
-  nav.link('SDI', 'SP');
-  nav.link('SDI', `H1:${P.storageDoorHall.x}`);
-  nav.node('SERVICE', P.serviceBarPickup.x, P.serviceBarPickup.z);
-  nav.link('SERVICE', 'LBL');
-  nav.link('SERVICE', 'LSD');
-  nav.node('RECEPTION', P.receptionPlayer.x, P.receptionPlayer.z);
-  nav.node('RECL', -5.4, -2.6);
-  nav.link('RECEPTION', 'RECL');
-  nav.link('RECL', 'LBL');
-  nav.node('RECR', 5.4, -2.6);
-  nav.link('RECEPTION', 'RECR');
-  nav.link('RECR', 'LBR');
-  nav.node('ELEV', P.elevatorPlate.x, P.elevatorPlate.z);
-  nav.link('ELEV', 'H3:0');
-  // Gehweg (für die Wegführung des Spielers zur Parkplatz-Platte)
-  nav.node('SWP', P.valetSpot.x, P.valetSpot.z);
-  nav.link('LEO', 'SWP');
+  nav.link('LEO', 'FX');
+  nav.link('FX', 'SWM');
+  nav.link('SWM', 'SWR');
+  nav.link('FX', 'SWP');
+  nav.link('LML', 'LHJ');
+  nav.link('LHJ', 'L:1.5');
+  nav.link('LR', 'RHJ');
+  nav.link('RHJ', 'R:1.5');
+  nav.link('STO', 'LHJ');
+  nav.link('STO', 'PAPER');
+  nav.link('STO', 'SP');
+  nav.link('SP', 'LML');
+  nav.link('SERVICE', 'PAPER');
+  nav.link('SERVICE', 'LB');
+  nav.link('ELEV', `T:${LANE.midX}`);
   return nav;
 }

@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { setMaxAnisotropy } from './textures';
+import { CEL } from './cel';
 
 /**
  * Renderer, Szene und Kamera. Feste Schrägdraufsicht, die der Figur folgt (§1).
+ * Beleuchtung übernimmt das Cel-Material (cel.ts) mit fester Lichtrichtung.
  */
 export class Stage {
   renderer: THREE.WebGLRenderer;
@@ -10,7 +12,7 @@ export class Stage {
   camera: THREE.PerspectiveCamera;
   /** Blickrichtung um die Hochachse (Kamera steht vorne rechts) */
   yaw = THREE.MathUtils.degToRad(26);
-  pitch = THREE.MathUtils.degToRad(54);
+  pitch = THREE.MathUtils.degToRad(57);
   /** Gewünschte sichtbare Breite am Zielpunkt (Einheiten) */
   viewWidth = 24;
   viewDepth = 30;
@@ -19,28 +21,20 @@ export class Stage {
   target = new THREE.Vector3();
   private smoothTarget = new THREE.Vector3();
   private shake = 0;
-  hemi: THREE.HemisphereLight;
-  sun: THREE.DirectionalLight;
   highQuality = true;
+  /** Radius des Durchblicks durch Wände um die Figur */
+  cutRadius = 2.1;
 
   constructor(public container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
-    this.renderer.setClearColor(0x68c943);
+    this.renderer.setClearColor(0x46ba0e);
     container.appendChild(this.renderer.domElement);
     this.renderer.domElement.id = 'game-canvas';
     setMaxAnisotropy(this.renderer.capabilities.getMaxAnisotropy());
 
     this.camera = new THREE.PerspectiveCamera(34, 1, 1, 400);
-
-    // Weiches, helles Licht – Lambert mit flacher Schattierung (§15)
-    this.hemi = new THREE.HemisphereLight(0xffffff, 0xb8a58c, 2.1);
-    this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight(0xfff4e0, 1.55);
-    this.sun.position.set(-18, 40, 22);
-    this.scene.add(this.sun);
-    this.scene.add(this.sun.target);
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -107,8 +101,8 @@ export class Stage {
     }
     this.camera.position.set(cx + sx, cy + sy, cz);
     this.camera.lookAt(this.smoothTarget.x + sx, 0.6, this.smoothTarget.z);
-    this.sun.position.set(this.smoothTarget.x - 18, 40, this.smoothTarget.z + 22);
-    this.sun.target.position.set(this.smoothTarget.x, 0, this.smoothTarget.z);
+    CEL.uCam.value.copy(this.camera.position);
+    CEL.uCut.value.set(this.target.x, 1.3, this.target.z, this.cutRadius);
   }
 
   render() {

@@ -5,7 +5,7 @@ import type { Game } from '../game/game';
 
 /** Heads-up-Display gemäß §14 (eigene Gestaltung). */
 
-export const STAR_BADGE = `<svg viewBox="0 0 64 64"><path d="M32 3l8.5 17.3 19 2.8-13.8 13.4 3.3 19-17-9-17 9 3.3-19L4.5 23.1l19-2.8z" fill="#ffc62b" stroke="#2b1457" stroke-width="3.5" stroke-linejoin="round"/><path d="M32 13l5.2 10.6 11.7 1.7-8.5 8.2 2 11.6L32 39.6l-10.4 5.5 2-11.6-8.5-8.2 11.7-1.7z" fill="#ffdf6e"/></svg>`;
+export const STAR_BADGE = `<svg viewBox="0 0 64 64"><path d="M32 3l8.5 17.3 19 2.8-13.8 13.4 3.3 19-17-9-17 9 3.3-19L4.5 23.1l19-2.8z" fill="#f8aa16" stroke="#3e2466" stroke-width="3.5" stroke-linejoin="round"/><path d="M32 13l5.2 10.6 11.7 1.7-8.5 8.2 2 11.6L32 39.6l-10.4 5.5 2-11.6-8.5-8.2 11.7-1.7z" fill="#ffdf6e"/></svg>`;
 
 type CurKey = 'candy' | 'toiletpaper' | 'tokens' | 'cash' | 'gems';
 

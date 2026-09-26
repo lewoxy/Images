@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GeoBuilder, vcMaterial } from './geo';
+import { GeoBuilder, vcSmooth } from './geo';
 import { C, HAIR, PANTS, SHIRTS, SKIN } from '../config/palette';
 
 /**
@@ -28,6 +28,9 @@ export interface Look {
   scale?: number;
 }
 
+/** Figuren passend zu 3-m-Wänden und übergroßen Möbeln (Stilhandbuch §2) */
+export const CHAR_SCALE = 1.15;
+
 export type Pose = 'idle' | 'walk' | 'work' | 'sleep' | 'sit' | 'wave';
 
 const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
@@ -41,7 +44,7 @@ export function randomGuestLook(): Look {
     hairStyle: style,
     shirt: pick(SHIRTS),
     pants: pick(PANTS),
-    shoes: pick([0x2a2233, 0x6b3b24, 0xf2f2f2, 0xe84a5f]),
+    shoes: pick([0x5c3593, 0x7a4a2e, 0xf9faf7, 0xd33429]),
     scale: 0.94 + Math.random() * 0.1,
   };
   const r = Math.random();
@@ -53,16 +56,17 @@ export function randomGuestLook(): Look {
 }
 
 export const LOOKS = {
+  // Farben nach mph-farbpalette.json („figur“): Uniform, Hut, Haut, Goldborte
   player: (): Look => ({
-    skin: 0xf5c9a6,
-    hair: 0x6b4226,
+    skin: C.playerSkin,
+    hair: 0x7a4a2e,
     hairStyle: 'short',
     shirt: C.playerUniform,
     pants: C.playerPants,
     shoes: C.shoe,
-    hat: { kind: 'bellhop', color: C.playerUniform, band: C.playerTrim },
+    hat: { kind: 'bellhop', color: C.playerHat, band: C.playerTrim },
     buttons: C.playerTrim,
-    gloves: 0xf4f0ff,
+    gloves: 0xf9faf7,
   }),
   cleaner: (): Look => ({
     skin: pick(SKIN),
@@ -70,7 +74,7 @@ export const LOOKS = {
     hairStyle: pick(['bun', 'short', 'pony'] as HairStyle[]),
     shirt: C.cleanerUniform,
     pants: 0x1f8a63,
-    shoes: 0x2a2233,
+    shoes: 0x5c3593,
     hat: { kind: 'band', color: C.cleanerBand },
     apron: 0xfff3a8,
   }),
@@ -80,7 +84,7 @@ export const LOOKS = {
     hairStyle: 'spiky',
     shirt: C.helperGold,
     pants: 0xe08a00,
-    shoes: 0x2a2233,
+    shoes: 0x5c3593,
     hat: { kind: 'band', color: 0xff5fa8 },
     apron: 0xffffff,
   }),
@@ -90,7 +94,7 @@ export const LOOKS = {
     hairStyle: pick(['bun', 'short', 'long', 'curly'] as HairStyle[]),
     shirt: C.receptionShirt,
     vest: C.receptionVest,
-    bowtie: 0x2a2233,
+    bowtie: 0x5c3593,
     pants: 0x2e2a45,
     shoes: C.shoe,
   }),
@@ -117,9 +121,9 @@ export const LOOKS = {
     skin: pick(SKIN),
     hair: pick(HAIR),
     hairStyle: pick(['short', 'long', 'pony'] as HairStyle[]),
-    shirt: 0x1d1d28,
+    shirt: 0x5c3593,
     vest: 0xffc42e,
-    pants: 0x1d1d28,
+    pants: 0x5c3593,
     shoes: 0xffc42e,
     sunglasses: true,
     hat: { kind: 'crown', color: 0xffc42e },
@@ -128,11 +132,11 @@ export const LOOKS = {
 
 export const SPECIAL_LOOKS: Look[] = [
   { skin: 0xf5c9a6, hair: 0xc0452b, hairStyle: 'bun', shirt: 0xffffff, pants: 0xff8fb0, shoes: 0xffffff, hat: { kind: 'nurse', color: 0xffffff }, apron: 0xff5f7a },
-  { skin: 0xeab28a, hair: 0x1e1e24, hairStyle: 'spiky', shirt: 0x1d1d28, pants: 0xe8203a, shoes: 0x1d1d28, sunglasses: true, vest: 0xe8203a },
-  { skin: 0xf7d7bd, hair: 0x3b2a20, hairStyle: 'short', shirt: 0xffffff, pants: 0x2e3a59, shoes: 0x2a2233, hat: { kind: 'chef', color: 0xffffff }, bowtie: 0xe8423a },
+  { skin: 0xeab28a, hair: 0x5c3593, hairStyle: 'spiky', shirt: 0x5c3593, pants: 0xe8203a, shoes: 0x5c3593, sunglasses: true, vest: 0xe8203a },
+  { skin: 0xf7d7bd, hair: 0x3b2a20, hairStyle: 'short', shirt: 0xffffff, pants: 0x2e3a59, shoes: 0x5c3593, hat: { kind: 'chef', color: 0xffffff }, bowtie: 0xe8423a },
   { skin: 0xf5c9a6, hair: 0x9b4dff, hairStyle: 'long', shirt: 0xb57bff, pants: 0x6a2fd6, shoes: 0xffc42e, hat: { kind: 'crown', color: 0xffc42e } },
-  { skin: 0xcf9168, hair: 0x9e9e9e, hairStyle: 'short', shirt: 0x1f3f8a, pants: 0xffffff, shoes: 0x2a2233, hat: { kind: 'cap', color: 0xffffff, band: 0x1f3f8a }, buttons: 0xffd23a },
-  { skin: 0x9a6441, hair: 0x1e1e24, hairStyle: 'pony', shirt: 0xffffff, pants: 0x46c97a, shoes: 0xffffff, hat: { kind: 'band', color: 0x46c97a } },
+  { skin: 0xcf9168, hair: 0x9e9e9e, hairStyle: 'short', shirt: 0x1f3f8a, pants: 0xffffff, shoes: 0x5c3593, hat: { kind: 'cap', color: 0xffffff, band: 0x1f3f8a }, buttons: 0xffd23a },
+  { skin: 0x9a6441, hair: 0x5c3593, hairStyle: 'pony', shirt: 0xffffff, pants: 0x46c97a, shoes: 0xffffff, hat: { kind: 'band', color: 0x46c97a } },
 ];
 
 function buildHead(b: GeoBuilder, look: Look) {
@@ -149,7 +153,7 @@ function buildHead(b: GeoBuilder, look: Look) {
   // Mund
   b.box(0.1, 0.022, 0.02, 0x8a3b3b, 0, hy - 0.13, 0.335);
   if (look.sunglasses) {
-    b.box(0.46, 0.1, 0.06, 0x1a1a22, 0, hy - 0.03, 0.32);
+    b.box(0.46, 0.1, 0.06, 0x3a2270, 0, hy - 0.03, 0.32);
   }
   const hair = look.hair;
   switch (look.hairStyle) {
@@ -281,14 +285,14 @@ export class Character {
     const bt = new GeoBuilder();
     buildTorso(bt, look);
     buildHead(bt, look);
-    const torso = new THREE.Mesh(bt.build(), vcMaterial);
+    const torso = new THREE.Mesh(bt.build(), vcSmooth);
     this.body.add(torso);
 
     const leg = (sx: number) => {
       const b = new GeoBuilder();
       b.capsule(0.12, 0.34, look.pants, 0, -0.26, 0);
       b.rbox(0.24, 0.14, 0.34, 0.06, look.shoes, 0, -0.62, 0.05);
-      const m = new THREE.Mesh(b.build(), vcMaterial);
+      const m = new THREE.Mesh(b.build(), vcSmooth);
       m.position.set(sx, 0.62, 0);
       return m;
     };
@@ -298,7 +302,7 @@ export class Character {
       const b = new GeoBuilder();
       b.capsule(0.095, 0.3, look.vest ? look.shirt : look.shirt, 0, -0.22, 0);
       b.sphere(0.105, look.gloves ?? look.skin, 0, -0.45, 0, 10);
-      const m = new THREE.Mesh(b.build(), vcMaterial);
+      const m = new THREE.Mesh(b.build(), vcSmooth);
       m.position.set(sx, 1.04, 0);
       m.rotation.z = sx < 0 ? 0.12 : -0.12;
       return m;
@@ -309,7 +313,7 @@ export class Character {
     this.hold.position.set(0, 0.86, 0.42);
     this.body.add(this.hold);
     this.root.add(this.body);
-    this.root.scale.setScalar(s);
+    this.root.scale.setScalar(s * CHAR_SCALE);
   }
 
   setTool(obj: THREE.Object3D | null) {
@@ -425,7 +429,7 @@ export function makeMop(): THREE.Mesh {
   const b = new GeoBuilder();
   b.cyl(0.03, 0.03, 1.1, 0xb98a55, 0, -0.55, 0, 6);
   b.rbox(0.36, 0.1, 0.16, 0.04, 0x4fb3ff, 0, -0.62, 0);
-  const m = new THREE.Mesh(b.build(), vcMaterial);
+  const m = new THREE.Mesh(b.build(), vcSmooth);
   m.rotation.x = 0.5;
   return m;
 }

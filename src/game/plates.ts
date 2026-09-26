@@ -176,7 +176,7 @@ export class Plate {
     g.textBaseline = 'middle';
     g.lineJoin = 'round';
     g.lineWidth = 7;
-    g.strokeStyle = '#2b1457';
+    g.strokeStyle = '#3e2466';
     g.fillStyle = '#ffffff';
     g.strokeText(this.label.toUpperCase(), 128, 46);
     g.fillText(this.label.toUpperCase(), 128, 46);

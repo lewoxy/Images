@@ -1,7 +1,7 @@
 import { Agent } from './agent';
 import { LOOKS, SPECIAL_LOOKS, randomGuestLook, type Look } from '../world/characters';
 import { GUEST_DROPS, GUEST_FLOW, GUEST_TIMING, ROOM_INCOME, TOILET_INCOME, VIP, VIP_TIP } from '../config/balance';
-import { P, QUEUE_PATH, QUEUE_SPACING } from '../config/floorplan';
+import { BUILDING, P, QUEUE_PATH, QUEUE_SPACING } from '../config/floorplan';
 import { ROOM, WC } from '../config/layout';
 import { cellKey, type Pt } from './nav';
 import type { RoomRt, WCRt } from './hotel';
@@ -93,9 +93,9 @@ export class GuestManager {
     return Math.min(GUEST_FLOW.maxInterval, Math.max(GUEST_FLOW.minInterval, GUEST_FLOW.intervalPerRoom / n));
   }
 
-  spawn(opts: { look?: Look; vip?: boolean; special?: SpecialInfo; fromCar?: boolean; atSlot?: boolean } = {}): Guest {
+  spawn(opts: { look?: Look; vip?: boolean; special?: SpecialInfo; fromCar?: boolean; from?: Pt; atSlot?: boolean } = {}): Guest {
     const fromCar = !!opts.fromCar;
-    const start = fromCar ? { x: P.garageEntrance.x, z: 7.6 } : { x: P.spawnLeft.x, z: P.spawnLeft.z + (Math.random() - 0.5) * 0.6 };
+    const start = opts.from ?? { x: P.spawnLeft.x, z: P.spawnLeft.z + (Math.random() - 0.5) * 0.6 };
     const gst = new Guest(opts.look ?? randomGuestLook(), this.g.stage.scene, this.g.shadows, start.x, start.z);
     gst.speed = GUEST_FLOW.walkSpeed * (0.92 + Math.random() * 0.16);
     gst.vip = !!opts.vip;
@@ -126,9 +126,14 @@ export class GuestManager {
   private walkToSlot(gst: Guest, i: number) {
     const p = queueSlotPos(i);
     const pts: Pt[] = [];
+    const lineZ = QUEUE_PATH[1].z;
+    // Gäste vom Parkplatz verlassen ihn hinter den Autos und kommen über den Gehweg
+    if (gst.fromCar && gst.state === 'arrive' && gst.x > 1.2) pts.push({ x: 1.0, z: gst.z }, { x: 0.5, z: lineZ });
     // Von draußen erst zur Tür, dann hinein
-    if (p.z < 6.8 && gst.z > 6.8) pts.push({ x: 0.15, z: 8.7 });
-    if (p.z < 6.8 && gst.z > 6.8 && Math.abs(gst.x) > 1) pts.unshift({ x: gst.x, z: 8.7 });
+    if (p.z < BUILDING.z1 + 0.6 && gst.z > BUILDING.z1 + 0.6) {
+      if (Math.abs(gst.x) > 1 && !gst.fromCar) pts.push({ x: gst.x, z: lineZ });
+      pts.push({ x: 0.15, z: lineZ - 0.2 });
+    }
     pts.push(p);
     gst.walk(pts, () => {
       gst.state = 'queue';
@@ -186,9 +191,9 @@ export class GuestManager {
     room.state = 'occupied';
     gst.state = 'lieDown';
     gst.timer = GUEST_TIMING.lieDown;
-    const b = room.bedPos;
-    gst.place(b.x + 0.35, b.z);
-    gst.ch.root.rotation.y = Math.PI / 2;
+    const b = room.bedPose;
+    gst.place(b.x, b.z);
+    gst.ch.root.rotation.y = b.ry;
     gst.ch.pose = 'sleep';
     gst.shadow.on = false;
   }
@@ -312,7 +317,7 @@ export class GuestManager {
     if (i >= 0) this.queue.splice(i, 1);
     gst.slot = -1;
     this.assignSlots();
-    gst.walk([{ x: gst.x > 0 ? 1.8 : gst.x, z: Math.max(gst.z, 7.8) }, { x: P.exitRight.x, z: 8.0 }], () => (gst.state = 'gone'));
+    gst.walk(this.g.nav.route(gst, 'SWR'), () => (gst.state = 'gone'));
     gst.state = 'leave';
   }
 

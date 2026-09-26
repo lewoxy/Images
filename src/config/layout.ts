@@ -1,48 +1,56 @@
 /**
  * Lokale Einrichtungspläne für Zimmer und Toilettenblöcke.
- * Koordinaten (u, v): u entlang +x, v zeigt zur Tür (Flurseite). Innenmaß ±3,5.
- * Umrechnung in Weltkoordinaten: floorplan.cellLocal().
+ * Koordinaten (u, v): v zeigt zur Tür (Flurseite), u quer dazu. Innenmaß ±3,6 m
+ * (Zelle 7,5 m, Wand 0,3 m). Umrechnung in Weltkoordinaten: floorplan.cellLocal().
+ *
+ * Möbel sind wie im Original gegenüber der Architektur überdimensioniert
+ * (Stilhandbuch §2: Bett 2,8 × 3,0 m, „alles etwa 1,5-fach über Realmaß“).
  */
 import { DOOR_U } from './floorplan.ts';
 
+export const IN = 3.6;
+
 export const ROOM = {
-  bed: { u: -1.95, v: -0.55 },
-  night: { u: -3.05, v: -2.35 },
-  rug: { u: -1.7, v: -0.55, w: 3.6, d: 3.0 },
-  dresser: { u: 3.02, v: -1.85 },
-  plant: { u: 2.95, v: -3.0 },
-  armchair: { u: 1.1, v: -2.65 },
-  lamp: { u: -3.05, v: 1.35 },
-  picture: { u: -3.46, v: 2.2 },
+  /** Bettmitte; Kopfteil an der Rückwand, Längsachse entlang v */
+  bed: { u: -1.05, v: -2.05, w: 2.8, l: 3.0 },
+  nightL: { u: -3.02, v: -3.2 },
+  nightR: { u: 0.95, v: -3.2 },
+  rug: { u: -1.05, v: 0.3, w: 3.4, d: 2.0 },
+  dresser: { u: 3.18, v: -1.35 },
+  plant: { u: 3.0, v: -3.05 },
+  window: { u: 2.2, w: 1.7 },
+  armchair: { u: 2.55, v: 0.75 },
+  clock: { u: -3.12, v: 2.95 },
+  picture: { u: -IN, v: -0.2 },
   /** 📱 exakt drei Reinigungspunkte an festen Stellen */
   spots: [
-    { u: -1.7, v: -0.45, y: 0.78, stand: { u: -0.05, v: -0.55 }, trig: { u: -0.35, v: -0.55 }, r: 1.25 },
-    { u: 1.05, v: -2.25, y: 0.02, stand: { u: 1.0, v: -1.45 }, trig: { u: 1.05, v: -2.25 }, r: 1.05 },
-    { u: -1.15, v: 2.2, y: 0.02, stand: { u: -0.4, v: 1.75 }, trig: { u: -1.15, v: 2.2 }, r: 1.05 },
+    { u: -1.05, v: -1.75, y: 0.98, stand: { u: -1.1, v: 0.35 }, trig: { u: -1.2, v: 0.25 }, r: 1.1 },
+    { u: 2.4, v: -0.45, y: 0.02, stand: { u: 1.7, v: -0.25 }, trig: { u: 2.4, v: -0.45 }, r: 1.05 },
+    { u: -2.5, v: 1.3, y: 0.02, stand: { u: -1.7, v: 1.25 }, trig: { u: -2.5, v: 1.3 }, r: 1.05 },
   ],
-  tip: { u: 0.35, v: 1.25 },
-  drop: { u: 0.9, v: -0.6 },
-  plate: { u: 2.35, v: 1.7, size: 2.3 },
+  tip: { u: -2.45, v: 2.85 },
+  drop: { u: 0.6, v: -0.1 },
+  plate: { u: 0.55, v: 1.95, size: 2.2 },
   buildPlate: { u: 0, v: 0, size: 3.0 },
-  entry: { u: DOOR_U, v: 2.5 },
+  entry: { u: DOOR_U, v: 2.2 },
   doorIn: { u: DOOR_U, v: 3.3 },
-  doorOut: { u: DOOR_U, v: 4.8 },
+  doorOut: { u: DOOR_U, v: 4.95 },
   /** Wo ein Gast vor dem Hinlegen steht */
-  bedSide: { u: -0.35, v: 0.95 },
+  bedSide: { u: 0.75, v: -0.35 },
 };
 
 export const WC = {
-  stalls: [-2.33, 0, 2.33],
-  toiletV: -2.95,
-  sitV: -2.62,
-  stallEntryV: -1.25,
-  partitions: [-1.165, 1.165],
+  stalls: [-2.35, 0, 2.35],
+  toiletV: -3.1,
+  sitV: -2.75,
+  stallEntryV: -1.2,
+  partitions: [-1.175, 1.175],
   sinks: [
-    { u: -3.05, v: 0.3 },
-    { u: -3.05, v: 1.55 },
+    { u: -3.15, v: 0.35 },
+    { u: -3.15, v: 1.6 },
   ],
-  paper: { u: 2.65, v: 1.8 },
-  money: { u: -1.4, v: 2.45 },
+  paper: { u: 2.75, v: 1.85 },
+  money: { u: -1.4, v: 2.6 },
   queue: [
     { u: 0.1, v: 0.35 },
     { u: -0.25, v: 1.45 },
@@ -50,7 +58,7 @@ export const WC = {
   ],
   doorU: 0,
   doorW: 2.0,
-  doorOut: { u: 0, v: 4.8 },
-  doorIn: { u: 0, v: 3.2 },
+  doorOut: { u: 0, v: 4.95 },
+  doorIn: { u: 0, v: 3.3 },
   buildPlate: { u: 0, v: 0, size: 3.0 },
 };

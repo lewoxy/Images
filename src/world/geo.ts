@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { cel } from './cel';
 
 /**
  * Sammelt Primitive mit Vertex-Farben und verschmilzt sie zu einer Geometrie.
- * Ein Mesh pro Bereich statt hunderter Einzelmeshes – wenige Draw Calls, flacher
- * „Sticker“-Look ohne Texturen (§15).
+ * Ein Mesh pro Bereich statt hunderter Einzelmeshes – wenige Draw Calls. Wie im
+ * Original hat jedes Objekt ein Material; Farbe kommt aus Vertex-Farbe bzw. Textur.
  */
 
 const _m = new THREE.Matrix4();
@@ -163,6 +164,21 @@ export class GeoBuilder {
     return this.add(g, color, x, y, z, { ry });
   }
 
+  /** Einzelnes Viereck (Eckpunkte gegen den Uhrzeigersinn von außen gesehen) */
+  face(p: number[][], color: number) {
+    const g = new THREE.BufferGeometry();
+    const a = new THREE.Vector3(...p[0]);
+    const b = new THREE.Vector3(...p[1]);
+    const c = new THREE.Vector3(...p[2]);
+    const n = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p.flat(), 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute([n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z], 3));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    paint(g, color);
+    this.parts.push(normalize(g));
+    return this;
+  }
+
   merge(other: GeoBuilder) {
     this.parts.push(...other.parts);
     other.parts = [];
@@ -199,8 +215,12 @@ export class GeoBuilder {
   }
 }
 
-/** Gemeinsames Material für alle vertex-gefärbten Objekte */
-export const vcMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+/** Gemeinsames Cel-Material für alle vertex-gefärbten Objekte (flat shaded) */
+export const vcMaterial = cel({ vertexColors: true });
+/** Figuren: glatte Normalen, trotzdem drei harte Stufen */
+export const vcSmooth = cel({ vertexColors: true, flat: false });
+/** Wandoberkanten: vertex-gefärbt, mit Durchblick um die Spielfigur */
+export const vcCutaway = cel({ vertexColors: true, cutaway: true });
 
 export function vcMesh(b: GeoBuilder): THREE.Mesh {
   const m = new THREE.Mesh(b.build(), vcMaterial);
@@ -209,7 +229,7 @@ export function vcMesh(b: GeoBuilder): THREE.Mesh {
   return m;
 }
 
-/** Boden-Quad mit Welt-UVs (Textur kachelt über Raumgrenzen hinweg gleichmäßig) */
+/** Boden-Quad mit UVs in Kachelgröße (Textur läuft über Raumgrenzen hinweg weiter) */
 export function floorGeometry(x0: number, x1: number, z0: number, z1: number, tile: number, y = 0): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   const pos = new Float32Array([x0, y, z1, x1, y, z1, x1, y, z0, x0, y, z0]);
@@ -223,61 +243,129 @@ export function floorGeometry(x0: number, x1: number, z0: number, z1: number, ti
   return g;
 }
 
+/** Textur-Streifen auf dem Boden (Läufer, Teppich): u entlang der Länge */
+export function stripGeometry(x0: number, x1: number, z0: number, z1: number, uLen: number, alongX: boolean, y = 0.01): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array([x0, y, z1, x1, y, z1, x1, y, z0, x0, y, z0]);
+  const nor = new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]);
+  const L = alongX ? (x1 - x0) / uLen : (z1 - z0) / uLen;
+  const uv = alongX ? [0, 0, L, 0, L, 1, 0, 1] : [0, 1, 0, 0, L, 0, L, 1];
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  g.computeBoundingSphere();
+  return g;
+}
+
+/** Wandseite: Material-Schlüssel und optionale Tönung (Vertex-Farbe) */
+export interface WallFace {
+  mat: string;
+  tint?: number;
+}
+
+interface Bucket {
+  pos: number[];
+  nor: number[];
+  uv: number[];
+  col: number[];
+  idx: number[];
+}
+
 /**
- * Wände mit Streifentextur: Seitenflächen bekommen Welt-UVs (u entlang der Wand,
- * v = Höhe) und die Vertex-Farbe der Wand; die Oberseiten (Schnittkanten) werden
- * separat als Vertex-Farb-Geometrie ausgegeben.
+ * Wände nach Stilhandbuch (Höhe 3,0, Stärke 0,3): achsparallele Segmente, deren
+ * beide Seiten eigene Materialien bekommen (z. B. innen Zimmertapete, außen
+ * Flurwand). UV: u = Weltkoordinate entlang der Wand / Periode (Muster laufen
+ * über Segmentgrenzen weiter), v = Höhe / Wandhöhe (Sockel bleibt unten).
+ * Oberseiten und Stirnflächen landen vertex-gefärbt in `caps`.
  */
-export class WallBuilder {
-  private sides: THREE.BufferGeometry[] = [];
+export class Walls {
+  private buckets = new Map<string, Bucket>();
   caps = new GeoBuilder();
 
   constructor(
-    public height: number,
-    public period = 0.9,
+    public height = 3,
+    public period = 1.5,
   ) {}
 
-  /** Wandsegment von (x0,z0) nach (x1,z1) – achsparallel –, Dicke t (symmetrisch zur Linie) */
-  seg(x0: number, z0: number, x1: number, z1: number, t: number, color: number, capColor: number, h = this.height, y0 = 0) {
-    const alongX = Math.abs(z1 - z0) < 1e-6;
-    const len = alongX ? Math.abs(x1 - x0) : Math.abs(z1 - z0);
-    if (len < 0.01) return;
-    const cx = (x0 + x1) / 2;
-    const cz = (z0 + z1) / 2;
-    const w = alongX ? len : t;
-    const d = alongX ? t : len;
-    const g = new THREE.BoxGeometry(w, h, d);
-    g.translate(cx, y0 + h / 2, cz);
-    // Oberseite entfernen wir nicht – sie liegt unter dem Cap
-    const pos = g.attributes.position as THREE.BufferAttribute;
-    const nor = g.attributes.normal as THREE.BufferAttribute;
-    const uv = g.attributes.uv as THREE.BufferAttribute;
-    for (let i = 0; i < pos.count; i++) {
-      const nx = nor.getX(i);
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      const u = Math.abs(nx) > 0.5 ? z / this.period : x / this.period;
-      uv.setXY(i, u, (y - y0) / h);
+  private bucket(k: string): Bucket {
+    let b = this.buckets.get(k);
+    if (!b) {
+      b = { pos: [], nor: [], uv: [], col: [], idx: [] };
+      this.buckets.set(k, b);
     }
-    paint(g, color);
-    this.sides.push(g);
-    // Kappe
-    this.caps.box(w + 0.001, 0.06, d + 0.001, capColor, cx, y0 + h, cz);
+    return b;
   }
 
-  buildSides(): THREE.BufferGeometry | null {
-    if (this.sides.length === 0) return null;
-    const g = mergeGeometries(
-      this.sides.map((s) => {
-        s.clearGroups();
-        return s;
-      }),
-      false,
-    );
-    for (const s of this.sides) s.dispose();
-    this.sides = [];
-    g.computeBoundingSphere();
-    return g;
+  private quad(face: WallFace, p: number[][], n: number[], u0: number, u1: number, v0: number, v1: number) {
+    const b = this.bucket(face.mat);
+    const base = b.pos.length / 3;
+    _c.set(face.tint ?? 0xffffff);
+    const uvs = [
+      [u0, v0],
+      [u1, v0],
+      [u1, v1],
+      [u0, v1],
+    ];
+    for (let i = 0; i < 4; i++) {
+      b.pos.push(p[i][0], p[i][1], p[i][2]);
+      b.nor.push(n[0], n[1], n[2]);
+      b.uv.push(uvs[i][0], uvs[i][1]);
+      b.col.push(_c.r, _c.g, _c.b);
+    }
+    b.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+
+  /**
+   * Segment von (x0,z0) nach (x1,z1), symmetrisch zur Linie mit Stärke t.
+   * `neg` = Seite mit Normale nach −z (Wand entlang x) bzw. −x (Wand entlang z),
+   * `pos` = gegenüberliegende Seite. null = Seite weglassen (verdeckt).
+   */
+  seg(x0: number, z0: number, x1: number, z1: number, t: number, neg: WallFace | null, pos: WallFace | null, capColor: number, h = this.height, y0 = 0) {
+    const alongX = Math.abs(z1 - z0) < 1e-6;
+    const a0 = alongX ? Math.min(x0, x1) : Math.min(z0, z1);
+    const a1 = alongX ? Math.max(x0, x1) : Math.max(z0, z1);
+    if (a1 - a0 < 0.01) return;
+    const c = alongX ? z0 : x0;
+    const lo = c - t / 2;
+    const hi = c + t / 2;
+    const yA = y0;
+    const yB = y0 + h;
+    const u0 = a0 / this.period;
+    const u1 = a1 / this.period;
+    const v0 = yA / this.height;
+    const v1 = yB / this.height;
+    if (alongX) {
+      if (neg) this.quad(neg, [[a1, yA, lo], [a0, yA, lo], [a0, yB, lo], [a1, yB, lo]], [0, 0, -1], -u1, -u0, v0, v1);
+      if (pos) this.quad(pos, [[a0, yA, hi], [a1, yA, hi], [a1, yB, hi], [a0, yB, hi]], [0, 0, 1], u0, u1, v0, v1);
+      this.caps.face([[a0, yB, hi], [a1, yB, hi], [a1, yB, lo], [a0, yB, lo]], capColor);
+      this.caps.face([[a0, yA, lo], [a0, yA, hi], [a0, yB, hi], [a0, yB, lo]], capColor);
+      this.caps.face([[a1, yA, hi], [a1, yA, lo], [a1, yB, lo], [a1, yB, hi]], capColor);
+    } else {
+      if (neg) this.quad(neg, [[lo, yA, a0], [lo, yA, a1], [lo, yB, a1], [lo, yB, a0]], [-1, 0, 0], u0, u1, v0, v1);
+      if (pos) this.quad(pos, [[hi, yA, a1], [hi, yA, a0], [hi, yB, a0], [hi, yB, a1]], [1, 0, 0], -u1, -u0, v0, v1);
+      this.caps.face([[lo, yB, a1], [hi, yB, a1], [hi, yB, a0], [lo, yB, a0]], capColor);
+      this.caps.face([[hi, yA, a0], [lo, yA, a0], [lo, yB, a0], [hi, yB, a0]], capColor);
+      this.caps.face([[lo, yA, a1], [hi, yA, a1], [hi, yB, a1], [lo, yB, a1]], capColor);
+    }
+  }
+
+  /** Meshes je Material; `mats` liefert das Material zum Schlüssel */
+  build(mats: (key: string) => THREE.Material, capMat: THREE.Material = vcCutaway): THREE.Mesh[] {
+    const out: THREE.Mesh[] = [];
+    for (const [k, b] of this.buckets) {
+      if (!b.idx.length) continue;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(b.col, 3));
+      g.setIndex(b.idx);
+      g.computeBoundingSphere();
+      out.push(new THREE.Mesh(g, mats(k)));
+    }
+    this.buckets.clear();
+    if (!this.caps.empty) out.push(new THREE.Mesh(this.caps.build(), capMat));
+    return out;
   }
 }

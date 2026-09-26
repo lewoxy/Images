@@ -44,7 +44,7 @@ import {
   type ResType,
 } from '../config/balance';
 import { NODES, ZONE_CELLS, maxTier, nodeId, roomKey, type UpgradeNode } from '../config/progression';
-import { P, cleanerPost, zonePlatePos } from '../config/floorplan';
+import { GATES, P, cleanerPost, zonePlatePos } from '../config/floorplan';
 import { ROOM, WC } from '../config/layout';
 import { RES_NAMES, T, fmt } from '../config/strings';
 
@@ -153,9 +153,9 @@ export class Game {
     this.markers = {
       reception: new FloorMarker(sc, P.receptionPlayer.x, P.receptionPlayer.z, 2.5, 'bell', yaw),
       paper: new FloorMarker(sc, P.paperPickup.x, P.paperPickup.z, 2.8, 'paper', yaw),
-      valet: new FloorMarker(sc, P.valetSpot.x, P.valetSpot.z, 2.5, 'parking', yaw, 'rgba(57,169,255,1)'),
-      service: new FloorMarker(sc, P.serviceBarPickup.x, P.serviceBarPickup.z, 2.3, 'champagne', yaw, 'rgba(255,95,168,1)'),
-      trash: new FloorMarker(sc, P.trash.x, P.trash.z, 2.9, 'close', yaw, 'rgba(242,48,63,1)'),
+      valet: new FloorMarker(sc, P.valetSpot.x, P.valetSpot.z, 2.5, 'parking', yaw, 'rgba(51,158,255,1)'),
+      service: new FloorMarker(sc, P.serviceBarPickup.x, P.serviceBarPickup.z, 2.3, 'champagne', yaw, 'rgba(255,95,162,1)'),
+      trash: new FloorMarker(sc, P.trash.x, P.trash.z, 2.9, 'close', yaw, 'rgba(255,43,29,1)'),
       wc: new Map(),
     };
     this.buildHotel();
@@ -212,6 +212,7 @@ export class Game {
       }
       this.world.setZoneLocked(z, z !== 1);
     }
+    for (const g of GATES) this.nav.setBlocked(g.id, true);
   }
 
   /** Spielstand anwenden */
@@ -441,7 +442,7 @@ export class Game {
         w.view.setPaperStock(w.stock);
         if (!this.markers.wc.has(w.zone)) {
           const pp = w.paperPos;
-          this.markers.wc.set(w.zone, new FloorMarker(this.stage.scene, pp.x, pp.z, 2.0, 'paper', this.stage.yaw, 'rgba(95,208,255,1)'));
+          this.markers.wc.set(w.zone, new FloorMarker(this.stage.scene, pp.x, pp.z, 2.0, 'paper', this.stage.yaw, 'rgba(34,200,232,1)'));
         }
         break;
       }
@@ -480,6 +481,7 @@ export class Game {
   private unlockZone(z: number, fresh: boolean) {
     this.zoneUnlocked[z] = true;
     this.world.setZoneLocked(z, false);
+    for (const g of GATES) if (g.zone === z) this.nav.setBlocked(g.id, false);
     for (const r of this.rooms) if (r.zone === z && r.tier === 0) r.view.set('unbuilt', 0, 0, fresh);
     const w = this.wcByZone.get(z);
     if (w && !w.built) w.view.set('unbuilt', 0, 0, fresh);
@@ -581,13 +583,13 @@ export class Game {
     this.hud.toast(`${svg('crown')} VIP eingecheckt! +${fmt(10 * this.incomeMult)} Trinkgeld`);
   }
 
-  onCarParked() {
+  onCarParked(from?: { x: number; z: number }) {
     const v = Math.round(PARKING_INCOME.pay * this.incomeMult);
     this.money.add(this.parkingPile, v);
     this.save.stats.cars++;
     this.events.emit('car', {});
     this.sfx.play('car');
-    if (this.guests.queue.length < 16) this.guests.spawn({ fromCar: true });
+    if (this.guests.queue.length < 16) this.guests.spawn({ fromCar: true, from });
   }
 
   spawnPickup(type: PickupType, p: Pt, amount: number) {
@@ -863,7 +865,7 @@ export class Game {
         const tw = r.w(sp.trig.u, sp.trig.v);
         if (Math.hypot(px - tw.x, pz - tw.z) < sp.r) {
           const done = r.work(i, PLAYER_CLEAN_RATE * dt);
-          this.fx.ring(`pc${r.key}${i}`, () => ({ ...r.w(sp.u, sp.v), y: 1.6 }), r.spots[i].progress, '#ffd23a');
+          this.fx.ring(`pc${r.key}${i}`, () => ({ ...r.w(sp.u, sp.v), y: 1.6 }), r.spots[i].progress, '#fecc06');
           p.ch.pose = 'work';
           if (done) this.onSpotCleaned(r, i, true);
         }
@@ -964,7 +966,7 @@ export class Game {
     }
     // Hinweis bei der Parkplatz-Schranke
     if (this.parking.active && this.parking.progress > 0) {
-      this.fx.ring('valet', () => ({ x: P.barrier.x - 2.4, y: 2.2, z: P.barrier.z }), this.parking.progress, '#39a9ff');
+      this.fx.ring('valet', () => ({ x: P.barrier.x - 2.4, y: 2.2, z: P.barrier.z }), this.parking.progress, '#339eff');
     }
     // Bodenzonen
     const mk = this.markers;
@@ -1057,6 +1059,20 @@ export class Game {
     }
     if (params.has('skiptut')) this.save.tutorial = -1;
     (window as unknown as { hotel: Game }).hotel = this;
+  }
+
+  /** Für Tests/Debug: die n jeweils günstigsten verfügbaren Platten nacheinander kaufen */
+  debugBuyN(n: number) {
+    this.silent = true;
+    for (let k = 0; k < n; k++) {
+      const list = [...this.plates.values()].filter((p) => !p.removing).sort((a, b) => a.cost.cash - b.cost.cash);
+      const pl = list[0];
+      if (!pl) break;
+      pl.paid = pl.cost.cash;
+      pl.resPaid = true;
+      this.completePurchase(pl);
+    }
+    this.silent = false;
   }
 
   /** Für Tests/Debug: alle verfügbaren Platten sofort kaufen */

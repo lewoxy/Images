@@ -90,7 +90,7 @@ export class FX {
   }
 
   /** Fortschrittsring (0..1) */
-  ring(id: string, anchor: Anchor, p: number, color = '#7cf08a') {
+  ring(id: string, anchor: Anchor, p: number, color = '#a8e05a') {
     const off = (RING_C * (1 - Math.max(0, Math.min(1, p)))).toFixed(1);
     const html = `<svg class="ring" viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="${RING_R}"/><circle class="fg" cx="23" cy="23" r="${RING_R}" stroke="${color}" stroke-dasharray="${RING_C.toFixed(1)}" stroke-dashoffset="${off}"/></svg>`;
     this.set(id, anchor, html, '');

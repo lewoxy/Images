@@ -1,28 +1,33 @@
 import * as THREE from 'three';
-import { GeoBuilder, WallBuilder, floorGeometry, vcMaterial } from './geo';
+import { GeoBuilder, Walls, floorGeometry, vcMaterial, type WallFace } from './geo';
 import { Collision, type AABB } from './collision';
 import { Materials } from './materials';
+import { setOpacity } from './cel';
 import * as PR from './props';
-import { C, tierColors } from '../config/palette';
-import { CELL, DOOR_U, DOOR_W, ROWS, WALL_H, ZONES, cellCenter } from '../config/floorplan';
-import { ROOM, WC } from '../config/layout';
+import * as TX from './textures';
+import { C, STYLE, tierColors, type TierColors } from '../config/palette';
+import { CELL, DIR_ANGLE, DOOR_H, DOOR_U, DOOR_W, WALL_H, WALL_HALF, areaAt, cellDef, colX, rowZ, type CellDef, type Dir } from '../config/floorplan';
+import { IN, ROOM, WC } from '../config/layout';
 
 export type CellKind = 'room' | 'wc';
 export type CellVisual = 'locked' | 'unbuilt' | 'built';
 
-const IN = CELL / 2 - 0.25; // 3.5 Innenmaß
-const HALF = CELL / 2;
-/** Wandhöhe der Wände, die zur Kamera zeigen (Einblick ins Zimmer) */
-export const NEAR_H = 1.1;
+const HALF = CELL / 2; // 3,75
+const T = WALL_HALF; // 0,15 – jede Zelle trägt ihre Wandhälfte
+const E = HALF - T / 2; // Wandmitte
+type Side = 'front' | 'back' | 'left' | 'right';
 
 /**
  * Darstellung einer Zelle (Zimmer oder WC). Die Gruppe liegt im Zellmittelpunkt
- * und ist bei Reihen mit Tür nach hinten in z gespiegelt – so gilt für alle
- * Zellen dasselbe lokale Layout (v zeigt zur Tür).
+ * und ist so gedreht, dass lokales +z (v) zur Tür zeigt – so gilt für alle
+ * Zellen dasselbe Einrichtungslayout. Die Wände stehen immer (3,0 m); gesperrte
+ * Zellen haben eine geschlossene Tür.
  */
 export class CellView {
   group = new THREE.Group();
+  private shell = new THREE.Group();
   private content = new THREE.Group();
+  private shellCols: AABB[] = [];
   private colliders: AABB[] = [];
   darkness: THREE.Mesh | null = null;
   dirt: THREE.Object3D[] = [];
@@ -30,11 +35,15 @@ export class CellView {
   visual: CellVisual = 'locked';
   tier = 0;
   design = 0;
-  readonly out: 1 | -1;
+  readonly def: CellDef;
+  readonly angle: number;
   readonly cx: number;
   readonly cz: number;
   wcPaper: THREE.Group | null = null;
   stallDoors: THREE.Mesh[] = [];
+  door: THREE.Mesh;
+  private doorTarget = 0;
+  private doorCol: AABB | null = null;
 
   constructor(
     public zone: number,
@@ -44,61 +53,159 @@ export class CellView {
     private col: Collision,
     parent: THREE.Object3D,
   ) {
-    const c = cellCenter(zone, index);
-    this.cx = c.x;
-    this.cz = c.z;
-    this.out = ROWS[ZONES[zone].row].doorSide;
-    this.group.position.set(c.x, 0, c.z);
-    this.group.scale.z = this.out;
-    this.group.add(this.content);
+    this.def = cellDef(zone, index);
+    this.cx = colX(this.def.col);
+    this.cz = rowZ(this.def.row);
+    this.angle = DIR_ANGLE[this.def.door];
+    this.group.position.set(this.cx, 0, this.cz);
+    this.group.rotation.y = this.angle;
+    this.group.add(this.shell, this.content);
+    // Tür (Leitfarbe), Scharnier an der rechten Laibung
+    const dg = new THREE.BoxGeometry(DOOR_W - 0.08, DOOR_H - 0.04, 0.08);
+    dg.translate(-(DOOR_W - 0.08) / 2, (DOOR_H - 0.04) / 2, 0);
+    this.door = new THREE.Mesh(dg, mat.door);
+    const du = this.doorU();
+    this.door.position.set(du + DOOR_W / 2 - 0.04, 0, E);
+    this.group.add(this.door);
     parent.add(this.group);
+  }
+
+  private doorU() {
+    return this.kind === 'wc' ? WC.doorU : DOOR_U;
   }
 
   /** lokale (u, v) → Welt */
   w(u: number, v: number) {
-    return { x: this.cx + u, z: this.cz + v * this.out };
+    const c = Math.cos(this.angle);
+    const s = Math.sin(this.angle);
+    return { x: this.cx + u * c + v * s, z: this.cz - u * s + v * c };
+  }
+
+  /** Blickrichtung (Weltwinkel um y) für lokales +z */
+  get facing() {
+    return this.angle;
+  }
+
+  private sideDir(side: Side): Dir {
+    const lv = side === 'front' ? [0, 1] : side === 'back' ? [0, -1] : side === 'left' ? [-1, 0] : [1, 0];
+    const c = Math.cos(this.angle);
+    const s = Math.sin(this.angle);
+    const x = Math.round(lv[0] * c + lv[1] * s);
+    const z = Math.round(-lv[0] * s + lv[1] * c);
+    return x === 1 ? 'E' : x === -1 ? 'W' : z === 1 ? 'S' : 'N';
+  }
+
+  /** Außenseite einer Wand je nach Nachbarfläche (verdeckte Seiten entfallen) */
+  private outer(side: Side): WallFace | null {
+    const d = this.sideDir(side);
+    const dc = d === 'E' ? 1 : d === 'W' ? -1 : 0;
+    const dr = d === 'S' ? 1 : d === 'N' ? -1 : 0;
+    const a = areaAt(this.def.col + dc, this.def.row + dr);
+    if (a === 'cell' || a === 'elevator') return null;
+    return { mat: a === 'hall' ? 'hall' : a === 'lobby' ? 'lobby' : a === 'court' ? 'court' : 'facade' };
+  }
+
+  private addColTo(list: AABB[], u0: number, u1: number, v0: number, v1: number) {
+    const a = this.w(u0, v0);
+    const b = this.w(u1, v1);
+    const c = this.col.add({ x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) });
+    list.push(c);
+    return c;
   }
 
   private addCol(u0: number, u1: number, v0: number, v1: number) {
-    const a = this.w(u0, v0);
-    const b = this.w(u1, v1);
-    this.colliders.push(this.col.add({ x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) }));
+    return this.addColTo(this.colliders, u0, u1, v0, v1);
+  }
+
+  private clearGroup(g: THREE.Group, keep: THREE.BufferGeometry | null = null) {
+    g.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      if (o.geometry !== keep) o.geometry.dispose();
+      if (o === this.darkness) (o.material as THREE.Material).dispose();
+    });
+    g.clear();
   }
 
   private clear() {
     for (const c of this.colliders) this.col.remove(c);
     this.colliders = [];
-    this.content.traverse((o) => {
-      if (!(o instanceof THREE.Mesh)) return;
-      if (o.geometry !== this.paperMesh) o.geometry.dispose();
-      // eigene (nicht geteilte) Materialien: Dunkelheit, Kabinentüren
-      if (o === this.darkness || this.stallDoors.includes(o)) (o.material as THREE.Material).dispose();
-    });
-    this.content.clear();
+    this.clearGroup(this.content, this.paperMesh);
     this.darkness = null;
     this.dirt = [];
     this.wcPaper = null;
     this.stallDoors = [];
   }
 
+  /** Wände mit Türöffnung; Innenseite je nach Zustand/Stufe */
+  private buildShell(innerKey: string) {
+    for (const c of this.shellCols) this.col.remove(c);
+    this.shellCols = [];
+    this.clearGroup(this.shell);
+    const wl = new Walls(WALL_H);
+    const inner: WallFace = { mat: innerKey };
+    const cap = C.wallCap;
+    const du = this.doorU();
+    const d0 = du - DOOR_W / 2;
+    const d1 = du + DOOR_W / 2;
+    wl.seg(-HALF, -E, HALF, -E, T, this.outer('back'), inner, cap);
+    wl.seg(-HALF, E, d0, E, T, inner, this.outer('front'), cap);
+    wl.seg(d1, E, HALF, E, T, inner, this.outer('front'), cap);
+    wl.seg(d0, E, d1, E, T, inner, this.outer('front'), cap, WALL_H - DOOR_H, DOOR_H);
+    wl.seg(-E, -HALF + T, -E, HALF - T, T, this.outer('left'), inner, cap);
+    wl.seg(E, -HALF + T, E, HALF - T, T, inner, this.outer('right'), cap);
+    for (const m of wl.build(this.mat.wallMat)) this.shell.add(m);
+    // Türrahmen in Leitfarbe (beidseitig)
+    const fr = new GeoBuilder();
+    for (const s of [-1, 1]) {
+      fr.box(0.14, DOOR_H + 0.08, T + 0.12, C.doorFrame, s < 0 ? d0 + 0.07 : d1 - 0.07, 0, E);
+    }
+    fr.box(DOOR_W, 0.14, T + 0.12, C.doorFrame, du, DOOR_H - 0.06, E);
+    fr.box(DOOR_W - 0.1, 0.02, 0.5, C.doorFrame, du, 0, E);
+    this.shell.add(new THREE.Mesh(fr.build(), vcMaterial));
+    const L = this.shellCols;
+    this.addColTo(L, -HALF, HALF, -HALF, -IN);
+    this.addColTo(L, -HALF, d0, IN, HALF);
+    this.addColTo(L, d1, HALF, IN, HALF);
+    this.addColTo(L, -HALF, -IN, -IN, IN);
+    this.addColTo(L, IN, HALF, -IN, IN);
+  }
+
+  private setDoor(open: boolean) {
+    this.doorTarget = open ? -Math.PI / 2 + 0.08 : 0;
+    if (this.doorCol) {
+      this.col.remove(this.doorCol);
+      this.doorCol = null;
+    }
+    if (!open) {
+      const du = this.doorU();
+      this.doorCol = this.addColTo(this.shellCols, du - DOOR_W / 2, du + DOOR_W / 2, IN - 0.1, HALF);
+    }
+  }
+
   set(visual: CellVisual, tier = 0, design = 0, animate = false) {
     this.clear();
+    const changedShell = this.visual !== visual || this.tier !== tier || this.design !== design || this.shell.children.length === 0;
     this.visual = visual;
     this.tier = tier;
     this.design = design;
-    if (visual === 'locked') {
-      this.content.add(new THREE.Mesh(floorGeometry(-HALF, HALF, -HALF, HALF, CELL, 0.002), this.mat.floor.foundation));
-    } else if (visual === 'unbuilt') {
-      this.content.add(new THREE.Mesh(floorGeometry(-HALF, HALF, -HALF, HALF, CELL, 0.002), this.mat.floor.foundation));
-      const b = new GeoBuilder();
-      const L = IN - 0.25;
-      for (let i = -L; i < L; i += 0.9) {
-        b.quad(0.5, 0.1, 0xf4f7fb, i + 0.25, 0.01, -L);
-        b.quad(0.5, 0.1, 0xf4f7fb, i + 0.25, 0.01, L);
-        b.quad(0.1, 0.5, 0xf4f7fb, -L, 0.01, i + 0.25);
-        b.quad(0.1, 0.5, 0xf4f7fb, L, 0.01, i + 0.25);
+    const innerKey = visual !== 'built' ? 'bare' : this.kind === 'wc' ? 'wc' : this.mat.roomWallKey(tier, design);
+    if (changedShell) this.buildShell(innerKey);
+    this.setDoor(visual !== 'locked');
+    if (visual === 'locked' || visual === 'unbuilt') {
+      this.content.add(new THREE.Mesh(floorGeometry(-IN, IN, -IN, IN, CELL / 2, 0.003), this.mat.floor.foundation));
+      if (visual === 'unbuilt') {
+        const b = new GeoBuilder();
+        const L = IN - 0.35;
+        for (let i = -L; i < L; i += 0.9) {
+          b.quad(0.5, 0.1, 0xf9faf7, i + 0.25, 0.012, -L);
+          b.quad(0.5, 0.1, 0xf9faf7, i + 0.25, 0.012, L);
+          b.quad(0.1, 0.5, 0xf9faf7, -L, 0.012, i + 0.25);
+          b.quad(0.1, 0.5, 0xf9faf7, L, 0.012, i + 0.25);
+        }
+        b.group((g) => PR.trafficCone(g), -IN + 0.5, 0, -IN + 0.5);
+        b.group((g) => PR.boxStack(g), IN - 0.7, 0, -IN + 0.7, 0.4);
+        this.content.add(new THREE.Mesh(b.build(), vcMaterial));
       }
-      this.content.add(new THREE.Mesh(b.build(), vcMaterial));
     } else if (this.kind === 'room') {
       this.buildRoom(tier, design);
     } else {
@@ -107,76 +214,115 @@ export class CellView {
     if (animate) this.popT = 0;
   }
 
-  private walls(color: number, capColor: number, doorU: number, doorW: number) {
-    const wb = new WallBuilder(WALL_H);
-    const t = 0.25;
-    const e = HALF - t / 2; // Wandmitte 3,625
-    // Sichtbarkeit: Welt-Normale · Kamerarichtung (vorn rechts)
-    const nearFront = this.out === 1;
-    const hFront = nearFront ? NEAR_H : WALL_H;
-    const hBack = nearFront ? WALL_H : NEAR_H;
-    // Rückwand (v = -e)
-    wb.seg(-HALF, -e, HALF, -e, t, color, capColor, hBack);
-    // Front mit Türöffnung
-    const d0 = doorU - doorW / 2;
-    const d1 = doorU + doorW / 2;
-    wb.seg(-HALF, e, d0, e, t, color, capColor, hFront);
-    wb.seg(d1, e, HALF, e, t, color, capColor, hFront);
-    // Türsturz nur bei hohen Wänden
-    if (hFront > 1.5) wb.seg(d0, e, d1, e, t, color, capColor, 0.35, hFront - 0.35);
-    // Links (fern) / rechts (nah)
-    wb.seg(-e, -IN, -e, IN, t, color, capColor, WALL_H);
-    wb.seg(e, -IN, e, IN, t, color, capColor, NEAR_H + 0.25);
-    this.addCol(-HALF, HALF, -HALF, -IN);
-    this.addCol(-HALF, d0, IN, HALF);
-    this.addCol(d1, HALF, IN, HALF);
-    this.addCol(-HALF, -IN, -IN, IN);
-    this.addCol(IN, HALF, -IN, IN);
-    const sides = wb.buildSides();
-    if (sides) this.content.add(new THREE.Mesh(sides, this.mat.wall));
-    this.content.add(new THREE.Mesh(wb.caps.build(), vcMaterial));
-    // Türschwelle
-    const fr = new GeoBuilder();
-    fr.quad(doorW, 0.5, C.doorFrame, doorU, 0.012, e);
-    this.content.add(new THREE.Mesh(fr.build(), vcMaterial));
+  // ---------------------------------------------------------------- Texturteile
+  private texBox(w: number, h: number, d: number, mat: THREE.Material, u: number, y: number, v: number, ry = 0) {
+    const g = new THREE.BoxGeometry(w, h, d);
+    g.translate(0, h / 2, 0);
+    const m = new THREE.Mesh(g, mat);
+    m.position.set(u, y, v);
+    m.rotation.y = ry;
+    this.content.add(m);
+    return m;
   }
 
+  private texPlane(w: number, d: number, mat: THREE.Material, u: number, y: number, v: number, vertical = false, ry = 0) {
+    const g = new THREE.PlaneGeometry(w, d);
+    if (!vertical) g.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(g, mat);
+    m.position.set(u, y, v);
+    m.rotation.y = ry;
+    this.content.add(m);
+    return m;
+  }
+
+  private blanketMat(tc: TierColors) {
+    const key = `bl${tc.pattern}${tc.blanket}${tc.blanketB}`;
+    return this.mat.textured(key, () =>
+      tc.pattern === 'stripes' ? TX.stripes(tc.blanket, tc.blanketB, 4) : tc.pattern === 'diamonds' ? TX.diamonds(tc.blanket, tc.blanketB) : TX.blossomFabric(tc.blanket, tc.blanketB),
+    );
+  }
+
+  private curtainMat(tc: TierColors, tier: number) {
+    const key = `cu${tier}${tc.curtain}${tc.curtainB}`;
+    return this.mat.textured(key, () => (tier >= 3 ? TX.blossomFabric(tc.curtain, tc.curtainB) : TX.stripes(tc.curtain, tc.curtainB, 3)));
+  }
+
+  // ---------------------------------------------------------------- Zimmer
   private buildRoom(tier: number, design: number) {
     const tc = tierColors(tier, design);
-    this.content.add(new THREE.Mesh(floorGeometry(-HALF, HALF, -HALF, HALF, tier >= 3 ? 2.5 : 3.0, 0.002), this.mat.roomFloor(tier, design)));
-    this.walls(tc.wall, C.wallCap, DOOR_U, DOOR_W);
-    const b = new GeoBuilder();
     const deluxe = design === 2;
-    // Teppich unter dem Bett
-    b.group((g) => PR.rug(g, ROOM.rug.w, ROOM.rug.d, tc.rug, tier >= 2 ? C.deskTop : undefined), ROOM.rug.u, 0, ROOM.rug.v);
-    b.group((g) => PR.bed(g, tc.bedFrame, tc.blanket, deluxe || tier >= 3), ROOM.bed.u, 0, ROOM.bed.v, Math.PI / 2);
-    this.addCol(ROOM.bed.u - 1.55, ROOM.bed.u + 1.5, ROOM.bed.v - 1.05, ROOM.bed.v + 1.05);
-    b.group((g) => PR.nightstand(g, tc.night), ROOM.night.u, 0, ROOM.night.v, Math.PI / 2);
-    this.addCol(ROOM.night.u - 0.4, ROOM.night.u + 0.4, ROOM.night.v - 0.45, ROOM.night.v + 0.45);
-    b.group((g) => PR.picture(g, tier >= 2 ? C.deluxePink : C.picture, 1.3, 0.9), ROOM.picture.u, 0.9, ROOM.picture.v, Math.PI / 2);
-    if (tier === 1) {
-      // Stufe 1: kleiner Tisch + Hocker
-      b.rbox(1.0, 0.7, 0.7, 0.08, tc.night, ROOM.dresser.u - 0.1, 0, ROOM.dresser.v, { ry: Math.PI / 2 });
-      b.cyl(0.26, 0.26, 0.45, tc.bedFrame, ROOM.dresser.u - 1.0, 0, ROOM.dresser.v, 10);
-      this.addCol(ROOM.dresser.u - 0.55, ROOM.dresser.u + 0.4, ROOM.dresser.v - 0.5, ROOM.dresser.v + 0.5);
-    } else {
-      b.group((g) => PR.dresser(g, tc.night), ROOM.dresser.u, 0, ROOM.dresser.v, -Math.PI / 2);
-      this.addCol(ROOM.dresser.u - 0.35, ROOM.dresser.u + 0.35, ROOM.dresser.v - 0.82, ROOM.dresser.v + 0.82);
-      b.group((g) => PR.plant(g, 1.0), ROOM.plant.u, 0, ROOM.plant.v);
-      this.addCol(ROOM.plant.u - 0.35, ROOM.plant.u + 0.35, ROOM.plant.v - 0.35, ROOM.plant.v + 0.35);
-    }
+    this.content.add(new THREE.Mesh(floorGeometry(-IN, IN, -IN, IN, tier === 2 ? 3.0 : 2.4, 0.003), this.mat.roomFloor(tier, design)));
+    const b = new GeoBuilder();
+    const bd = ROOM.bed;
+
+    // Teppich (Band-Textur) vor dem Bett
+    this.texPlane(ROOM.rug.w, ROOM.rug.d, this.mat.textured(`rug${tc.rug}${tc.rugB}${tc.accent}`, () => TX.rugBanner(tc.rug, tc.rugB, tc.accent)), ROOM.rug.u, 0.02, ROOM.rug.v);
+
+    // Bett
     if (tier >= 3) {
-      b.group((g) => PR.tv(g), ROOM.dresser.u - 0.05, 0.85, ROOM.dresser.v, -Math.PI / 2);
-      b.group((g) => PR.armchair(g, tc.blanket, tc.rug), ROOM.armchair.u, 0, ROOM.armchair.v, -0.3);
-      this.addCol(ROOM.armchair.u - 0.55, ROOM.armchair.u + 0.55, ROOM.armchair.v - 0.5, ROOM.armchair.v + 0.5);
+      b.group((g) => PR.roundBed(g, tc.bedFrame, tc.accent, tc.pillow), bd.u, 0, bd.v + 0.25);
+      const top = new THREE.CylinderGeometry(PR.ROUND_BED.r - 0.12, PR.ROUND_BED.r - 0.08, 0.14, 24);
+      top.translate(0, 0.07, 0);
+      const m = new THREE.Mesh(top, this.blanketMat(tc));
+      m.position.set(bd.u, 0.6, bd.v + 0.25);
+      this.content.add(m);
+      this.addCol(bd.u - 1.6, bd.u + 1.6, -IN, bd.v + 1.8);
+    } else {
+      b.group((g) => PR.bed(g, tc.bedFrame, tc.pillow, tier >= 2, deluxe ? STYLE.gold : undefined), bd.u, 0, bd.v);
+      this.texBox(PR.BED.w - 0.06, 0.14, PR.BED.blanketL, this.blanketMat(tc), bd.u, PR.BED.top - 0.12, bd.v + PR.BED.blanketZ);
+      this.addCol(bd.u - bd.w / 2, bd.u + bd.w / 2, -IN, bd.v + bd.l / 2);
     }
-    if (deluxe || tier >= 3) {
-      b.group((g) => PR.lampFloor(g), ROOM.lamp.u, 0, ROOM.lamp.v);
-      this.addCol(ROOM.lamp.u - 0.3, ROOM.lamp.u + 0.3, ROOM.lamp.v - 0.3, ROOM.lamp.v + 0.3);
+
+    // Nachttische mit Lampen, Wandleuchten ab Stufe 2
+    const round = tier >= 3;
+    for (const n of [ROOM.nightL, ROOM.nightR]) {
+      b.group((g) => PR.nightstand(g, tc.night, true, tc.accent === STYLE.gold ? C.lampShade : tc.accent, round), n.u, 0, n.v);
+      this.addCol(n.u - 0.55, n.u + 0.55, -IN, n.v + 0.35);
+      if (tier >= 2) b.group((g) => PR.wallLamp(g, STYLE.gold, C.lampShade), n.u, 2.05, -IN);
+    }
+
+    // Fenster mit Vorhängen an der Rückwand
+    const wu = ROOM.window.u;
+    const ww = ROOM.window.w;
+    b.group((g) => PR.windowFrame(g, ww, 1.3), wu, 1.0, -IN);
+    const cm = this.curtainMat(tc, tier);
+    for (const s of [-1, 1]) this.texBox(0.5, 2.45, 0.12, cm, wu + s * (ww / 2 + 0.12), 0.25, -IN + 0.16);
+    this.texBox(ww + 1.1, 0.34, 0.16, cm, wu, 2.62, -IN + 0.14);
+
+    // Kommode / Tisch an der rechten Wand
+    const dr = ROOM.dresser;
+    if (tier === 1) {
+      b.group((g) => PR.smallTable(g, tc.night, C.t1Rug), dr.u - 0.25, 0, dr.v, -Math.PI / 2);
+      this.addCol(dr.u - 0.9, IN, dr.v - 0.7, dr.v + 1.1);
+    } else {
+      b.group((g) => PR.dresser(g, tc.night), dr.u, 0, dr.v, -Math.PI / 2);
+      this.addCol(dr.u - 0.4, IN, dr.v - 1.05, dr.v + 1.05);
+    }
+    if (tier >= 3) b.group((g) => PR.tv(g), dr.u - 0.1, 1.03, dr.v, -Math.PI / 2);
+
+    // Uhr: Wanduhr (Stufe 1) oder Standuhr
+    const ck = ROOM.clock;
+    if (tier === 1) {
+      b.group((g) => PR.wallClock(g, STYLE.lead), -IN, 2.15, 1.4, Math.PI / 2);
+    } else {
+      b.group((g) => PR.grandfatherClock(g, tc.night, STYLE.gold), ck.u, 0, ck.v, Math.PI / 2);
+      this.addCol(ck.u - 0.35, ck.u + 0.35, ck.v - 0.45, IN);
+    }
+
+    // Bild an der linken Wand
+    const pk = (this.zone * 3 + this.index + tier) % 3;
+    b.group((g) => PR.pictureFrame(g, 1.1, 0.85, tier >= 3 ? STYLE.gold : C.doorFrame), -IN + 0.02, 1.5, ROOM.picture.v, Math.PI / 2);
+    this.texPlane(1.1, 0.85, this.mat.textured('paint' + pk, () => TX.painting(pk)), -IN + 0.08, 1.5 + 0.425 - 0.08, ROOM.picture.v, true, Math.PI / 2);
+
+    // Sessel ab Stufe 2
+    if (tier >= 2) {
+      b.group((g) => PR.armchair(g, tc.rug, tc.blanketB), ROOM.armchair.u, 0, ROOM.armchair.v, -Math.PI / 2 - 0.35);
+      this.addCol(ROOM.armchair.u - 0.6, ROOM.armchair.u + 0.6, ROOM.armchair.v - 0.6, ROOM.armchair.v + 0.6);
     }
     if (deluxe) {
-      b.group((g) => PR.palm(g, 0.9), -3.0, 0, 3.0);
-      b.group((g) => PR.roundRug(g, 0.9, C.deluxePurple, C.deluxeGold), 0.6, 0, 1.3);
+      b.group((g) => PR.roundRug(g, 0.85, STYLE.magenta, STYLE.gold), -2.7, 0, 2.3);
+      b.group((g) => PR.lampFloor(g), 3.1, 0, 2.2);
+      this.addCol(2.8, 3.4, 1.9, 2.5);
     }
     this.content.add(new THREE.Mesh(b.build(), vcMaterial));
 
@@ -185,22 +331,22 @@ export class CellView {
       const g = new GeoBuilder();
       if (i === 0) {
         // zerwühlte Laken
-        g.sphere(0.42, C.dirtSheet, 0, 0.1, 0, 8, { sy: 0.45 });
-        g.sphere(0.3, 0xcfc6b2, 0.35, 0.1, 0.25, 7, { sy: 0.5 });
-        g.sphere(0.26, 0xe6dfcf, -0.3, 0.12, -0.2, 7, { sy: 0.5 });
-        g.rbox(0.5, 0.06, 0.3, 0.03, tc.blanket, 0.2, 0.2, -0.45, { ry: 0.7 });
+        g.sphere(0.5, C.dirtSheet, 0, 0.1, 0, 7, { sy: 0.45 });
+        g.sphere(0.36, 0xf9faf7, 0.42, 0.1, 0.3, 6, { sy: 0.5 });
+        g.sphere(0.32, 0xe0d2b4, -0.36, 0.12, -0.24, 6, { sy: 0.5 });
+        g.box(0.62, 0.06, 0.36, tc.blanket, 0.24, 0.2, -0.52, { ry: 0.7 });
       } else if (i === 1) {
-        // Müll: Papierknäuel + Bananenschale + Dose
-        g.sphere(0.16, 0xe8e4da, 0, 0.14, 0, 6);
-        g.sphere(0.13, 0xd9d4c6, 0.28, 0.12, 0.18, 6);
-        g.sphere(0.12, 0xe8e4da, -0.25, 0.1, 0.2, 6);
-        g.rbox(0.45, 0.06, 0.14, 0.05, C.banana, 0.05, 0.02, -0.3, { ry: 0.5 });
-        g.cyl(0.08, 0.08, 0.22, 0xe84a5f, -0.3, 0.02, -0.15, 8, { rz: Math.PI / 2 });
+        // Müll: Papierknäuel, Bananenschale, Dose
+        g.sphere(0.2, 0xf9faf7, 0, 0.16, 0, 5);
+        g.sphere(0.16, 0xe3f3f6, 0.34, 0.14, 0.22, 5);
+        g.sphere(0.15, 0xf9faf7, -0.3, 0.12, 0.24, 5);
+        g.box(0.55, 0.07, 0.17, C.banana, 0.06, 0.02, -0.36, { ry: 0.5 });
+        g.cyl(0.1, 0.1, 0.27, STYLE.signalRed, -0.36, 0.02, -0.18, 8, { rz: Math.PI / 2 });
       } else {
         // Fleck
-        g.disc(0.55, C.dirtStain, 0, 0.012, 0, 16);
-        g.disc(0.3, 0x74582c, 0.35, 0.016, 0.2, 12);
-        g.sphere(0.08, 0x8a6a3a, -0.2, 0.05, -0.1, 5);
+        g.disc(0.66, C.dirtStain, 0, 0.014, 0, 10);
+        g.disc(0.36, 0xb89250, 0.42, 0.018, 0.24, 8);
+        g.sphere(0.1, 0xa8804a, -0.24, 0.06, -0.12, 5);
       }
       const m = new THREE.Mesh(g.build(), vcMaterial);
       m.position.set(s.u, s.y, s.v);
@@ -218,36 +364,39 @@ export class CellView {
     this.darkness = dk;
   }
 
+  // ---------------------------------------------------------------- WC
   private buildWC() {
-    this.content.add(new THREE.Mesh(floorGeometry(-HALF, HALF, -HALF, HALF, 2.5, 0.002), this.mat.floor.wc));
-    this.walls(C.wcWall, C.wallCap, WC.doorU, WC.doorW);
+    this.content.add(new THREE.Mesh(floorGeometry(-IN, IN, -IN, IN, 2.0, 0.003), this.mat.floor.wc));
     const b = new GeoBuilder();
     for (const u of WC.stalls) {
       b.group((g) => PR.toilet(g), u, 0, WC.toiletV);
-      // Klopapierhalter
-      b.box(0.1, 0.1, 0.2, 0xb8c2d0, u + 0.7, 0.75, -3.35);
+      b.box(0.12, 0.12, 0.22, PR.METAL, u + 0.75, 0.85, -IN + 0.1);
+      b.group((g) => PR.paperRoll(g, 0, 0, 0, false), u + 0.75, 0.62, -IN + 0.2);
     }
     for (const u of WC.partitions) {
-      b.rbox(0.14, 1.45, 2.3, 0.04, C.wcStall, u, 0, -2.35);
-      b.box(0.2, 0.1, 2.3, 0xff8a7a, u, 1.45, -2.35);
+      b.box(0.14, 1.9, 2.4, C.wcStall, u, 0.12, -IN + 1.2);
+      b.box(0.2, 0.1, 2.4, C.wcToiletSeat, u, 2.02, -IN + 1.2);
+      b.box(0.1, 0.12, 0.1, PR.METAL, u, 0, -IN + 2.35);
     }
     for (const s of WC.sinks) b.group((g) => PR.sink(g), s.u, 0, s.v, Math.PI / 2);
-    for (const s of WC.sinks) this.addCol(s.u - 0.35, s.u + 0.45, s.v - 0.48, s.v + 0.48);
-    for (const u of WC.partitions) this.addCol(u - 0.1, u + 0.1, -3.5, -1.2);
+    for (const s of WC.sinks) this.addCol(s.u - 0.45, s.u + 0.35, s.v - 0.55, s.v + 0.55);
+    for (const u of WC.partitions) this.addCol(u - 0.1, u + 0.1, -IN, -1.15);
     // Papierstation (Nachfüllpunkt)
-    b.rbox(1.0, 0.7, 0.8, 0.06, 0x3a7bf0, WC.paper.u + 0.35, 0, WC.paper.v);
-    this.addCol(WC.paper.u - 0.15, WC.paper.u + 0.85, WC.paper.v - 0.4, WC.paper.v + 0.4);
-    b.group((g) => PR.plant(g, 0.8), 3.0, 0, 3.0);
+    b.box(1.1, 0.72, 0.9, STYLE.lead, WC.paper.u + 0.3, 0, WC.paper.v);
+    b.box(1.16, 0.06, 0.96, STYLE.gold, WC.paper.u + 0.3, 0.72, WC.paper.v);
+    this.addCol(WC.paper.u - 0.25, IN, WC.paper.v - 0.45, WC.paper.v + 0.45);
+    b.group((g) => PR.plant(g, 0.8), 3.05, 0, 3.05);
+    b.group((g) => PR.wallLamp(g, STYLE.gold, C.lampShade), 0, 2.3, -IN);
     this.content.add(new THREE.Mesh(b.build(), vcMaterial));
     // Papierrollen auf der Station (Anzeige des Vorrats)
     this.wcPaper = new THREE.Group();
-    this.wcPaper.position.set(WC.paper.u + 0.35, 0.7, WC.paper.v);
+    this.wcPaper.position.set(WC.paper.u + 0.3, 0.78, WC.paper.v);
     this.content.add(this.wcPaper);
     // Kabinentüren (schwingen auf)
     for (const u of WC.stalls) {
-      const d = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.05, 0.08), new THREE.MeshLambertMaterial({ color: 0xff8a3d }));
-      d.geometry.translate(0.5, 0.52, 0);
-      d.position.set(u - 0.55, 0.28, -1.22);
+      const d = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.55, 0.08), this.mat.colored(0xd9a978));
+      d.geometry.translate(0.55, 0.78, 0);
+      d.position.set(u - 0.58, 0.3, -1.2);
       d.rotation.y = -1.4;
       this.stallDoors.push(d);
       this.content.add(d);
@@ -267,7 +416,7 @@ export class CellView {
     while (this.wcPaper.children.length < want) {
       const i = this.wcPaper.children.length;
       const m = new THREE.Mesh(this.paperMesh, vcMaterial);
-      m.position.set(-0.3 + (i % 3) * 0.3, Math.floor(i / 3) * 0.27, 0.0 + ((i % 2) - 0.5) * 0.12);
+      m.position.set(-0.36 + (i % 3) * 0.36, Math.floor(i / 3) * 0.31, ((i % 2) - 0.5) * 0.16);
       this.wcPaper.add(m);
     }
   }
@@ -285,7 +434,7 @@ export class CellView {
   setNight(a: number) {
     if (!this.darkness) return;
     this.darkness.visible = a > 0.01;
-    (this.darkness.material as THREE.MeshBasicMaterial).opacity = a * 0.62;
+    setOpacity(this.darkness.material as THREE.Material, a * 0.55);
   }
 
   update(dt: number) {
@@ -296,6 +445,7 @@ export class CellView {
       const s = t === 1 ? 1 : 1 - Math.pow(2, -9 * t) * Math.cos(t * 11);
       this.content.scale.set(1, Math.max(0.02, s), 1);
     }
+    this.door.rotation.y += (this.doorTarget - this.door.rotation.y) * Math.min(1, dt * 6);
     for (const d of this.stallDoors) {
       const target = (d.userData.target as number | undefined) ?? -1.4;
       d.rotation.y += (target - d.rotation.y) * Math.min(1, dt * 8);

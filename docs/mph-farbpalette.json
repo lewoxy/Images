@@ -1,0 +1,93 @@
+{
+  "_meta": {
+    "quelle": "Gemessen aus Gameplay-Frames (k-Means je Bildregion) und drei Geraete-Screenshots",
+    "hinweis": "Alle Werte stammen aus verlustbehaftetem Videomaterial. Abweichungen von +/- 3 pro Kanal sind moeglich. Farbwerte sind nicht urheberrechtlich geschuetzt; die Liste dient als Stilreferenz fuer eigene Assets.",
+    "vertrauen": { "hoch": "UI, Zimmer, Sanitaer", "mittel": "Korridor, Aussenbereich" }
+  },
+
+  "umgebung": {
+    "rasen":              "#46BA0E",
+    "rasen_screenshot":   "#56AB41",
+    "baum_hell":          "#16A15B",
+    "baum_dunkel":        "#068A44",
+    "strasse_asphalt":    "#9DC3D3",
+    "strasse_markierung": "#E3F3F6"
+  },
+
+  "ui": {
+    "navleiste":          "#8048CF",
+    "navleiste_aktiv":    "#DFB8FE",
+    "navleiste_glow":     "#C989FF",
+    "navleiste_trenner":  "#5C3593",
+    "hud_ueberlagerung":  "#1D4946",
+    "hud_komposit":       "#455F46",
+    "outline_weiss":      "#F9FAF7",
+    "fortschritt_gruen":  "#92D535",
+    "badge_rot":          "#FF2B1D",
+    "badge_cyan":         "#22C8E8",
+    "gold_stern":         "#F8AA16",
+    "gold_stern_hell":    "#FECC06"
+  },
+
+  "waehrung": {
+    "cash":     "#4BB710",
+    "cash_hell":"#C4FF3A",
+    "gem":      "#339EFF",
+    "gem_hell": "#62A5D3",
+    "token":    "#F7CA11",
+    "bonbon":   "#FF5FA2"
+  },
+
+  "zimmer_stufe1": {
+    "boden_parkett":  "#D37242",
+    "wand_hell":      "#4BB375",
+    "wand_dunkel":    "#38805B",
+    "bett_decke":     "#76A5D4",
+    "bett_kissen":    "#FAD6A8",
+    "moebel_rot":     "#972235",
+    "vorhang_oliv":   "#81A707"
+  },
+
+  "zimmer_stufe2": {
+    "boden_fliese":   "#E5C7AA",
+    "wand_tuerkis":   "#5EDAEA",
+    "teppich_blau":   "#429EBC",
+    "decke_dunkel":   "#1C9C43",
+    "decke_hell":     "#42E978",
+    "rahmen_holz":    "#DE5E2A",
+    "lampe_gelb":     "#E5BA14"
+  },
+
+  "zimmer_stufe3": {
+    "wand_gruen":     "#6EE602",
+    "wand_muster":    "#26902D",
+    "boden_hellgruen":"#AEEA8C",
+    "rundbett_cyan":  "#0BCAF2",
+    "rahmen_gold":    "#EEA127",
+    "highlight":      "#DAFAFB"
+  },
+
+  "sanitaer": {
+    "boden_beige":    "#EED3B0",
+    "wand_rotbraun":  "#9C3734",
+    "keramik_gelb":   "#F7CA11",
+    "becken_cyan":    "#15F8FA",
+    "holz_tan":       "#BF8E62"
+  },
+
+  "korridor": {
+    "laeufer_violett":"#8B48E2",
+    "laeufer_dunkel": "#7F06B9",
+    "wand_magenta":   "#D804E7",
+    "boden_rosa":     "#E09BE4",
+    "laeufer_gruen":  "#16A15B",
+    "boden_sand":     "#E4CE87"
+  },
+
+  "figur": {
+    "uniform":        "#E40151",
+    "hut":            "#700344",
+    "haut":           "#FFD39D",
+    "borte_gold":     "#F2C80B"
+  }
+}

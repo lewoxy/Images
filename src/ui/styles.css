@@ -3,20 +3,26 @@
 @import '@fontsource/fredoka/latin-700.css';
 
 :root {
-  --purple: #7b2ff7;
-  --purple-dark: #4a1aa8;
-  --purple-deep: #2e0f73;
-  --purple-light: #a56bff;
+  /* Farben nach mph-farbpalette.json („ui“, „waehrung“) */
+  --purple: #8048cf;
+  --purple-dark: #5c3593;
+  --purple-deep: #3e2466;
+  --purple-light: #c989ff;
+  --purple-active: #dfb8fe;
+  --cyan: #22c8e8;
+  --progress: #92d535;
+  --candy: #ff5fa2;
+  --white: #f9faf7;
   --hud: rgba(29, 73, 70, 0.55);
-  --cash: #3bd65a;
-  --cash-dark: #1b9c3b;
-  --gem: #39a9ff;
-  --gem-dark: #1464cc;
-  --star: #ffc62b;
-  --star-dark: #e68600;
-  --token: #ffb02e;
-  --red: #f2303f;
-  --outline: #2b1457;
+  --cash: #4bb710;
+  --cash-dark: #2f7e08;
+  --gem: #339eff;
+  --gem-dark: #1c6fc4;
+  --star: #f8aa16;
+  --star-dark: #c77f00;
+  --token: #f7ca11;
+  --red: #ff2b1d;
+  --outline: #3e2466;
   --panel: #fff6e6;
   --panel-edge: #ffd88a;
   --text-dark: #3a2270;
@@ -107,7 +113,7 @@ button {
   justify-content: center;
   gap: 28px;
   background:
-    radial-gradient(circle at 50% 38%, #a56bff 0%, #7b2ff7 38%, #4a1aa8 100%);
+    radial-gradient(circle at 50% 38%, #c989ff 0%, #8048cf 38%, #5c3593 100%);
   z-index: 50;
   transition: opacity 0.5s;
 }
@@ -129,24 +135,24 @@ button {
   color: #fff;
   letter-spacing: 1px;
   text-shadow:
-    0 4px 0 #2e0f73,
-    -3px -3px 0 #2e0f73,
-    3px -3px 0 #2e0f73,
-    -3px 3px 0 #2e0f73,
-    3px 3px 0 #2e0f73,
+    0 4px 0 #3e2466,
+    -3px -3px 0 #3e2466,
+    3px -3px 0 #3e2466,
+    -3px 3px 0 #3e2466,
+    3px 3px 0 #3e2466,
     0 10px 18px rgba(0, 0, 0, 0.35);
 }
 
 .load-title span {
   display: inline-block;
-  color: #ffd23a;
+  color: #fecc06;
   font-size: 72px;
   padding: 2px 16px;
   margin-top: 6px;
   background: #ff5a3a;
   border-radius: 16px;
   border: 5px solid #fff;
-  box-shadow: 0 6px 0 #2e0f73;
+  box-shadow: 0 6px 0 #3e2466;
   text-shadow:
     0 3px 0 #9c2a12,
     -2px -2px 0 #9c2a12,
@@ -158,7 +164,7 @@ button {
 .load-stars {
   margin-top: 10px;
   font-size: 30px;
-  color: #ffd23a;
+  color: #fecc06;
   letter-spacing: 6px;
   text-shadow: 0 3px 0 #9c5a00;
 }
@@ -167,7 +173,7 @@ button {
   width: min(240px, 60vw);
   height: 20px;
   border-radius: 12px;
-  background: #2e0f73;
+  background: #3e2466;
   border: 3px solid #fff;
   overflow: hidden;
 }
@@ -175,7 +181,7 @@ button {
 .load-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(#7cf08a, #2fc44a);
+  background: linear-gradient(#a8e05a, #2fc44a);
   transition: width 0.25s;
 }
 
@@ -213,7 +219,7 @@ button {
   margin: -27px 0 0 -27px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 4px 0 rgba(43, 20, 87, 0.45);
+  box-shadow: 0 4px 0 rgba(62, 36, 102, 0.45);
 }
 
 /* ------------------------------------------------------------ HUD oben */
@@ -240,7 +246,7 @@ button {
 .lvl svg {
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 3px 0 rgba(43, 20, 87, 0.5));
+  filter: drop-shadow(0 3px 0 rgba(62, 36, 102, 0.5));
 }
 
 .lvl-num {
@@ -284,7 +290,8 @@ button {
   position: absolute;
   inset: 0 auto 0 0;
   width: 0;
-  background: linear-gradient(#8cf07c, #36c43f);
+  background: var(--progress);
+  box-shadow: inset 0 -5px 0 rgba(75, 183, 16, 0.55);
   transition: width 0.4s;
 }
 
@@ -316,7 +323,7 @@ button {
 .cur svg {
   width: 30px;
   height: 30px;
-  filter: drop-shadow(0 2px 0 rgba(43, 20, 87, 0.45));
+  filter: drop-shadow(0 2px 0 rgba(62, 36, 102, 0.45));
 }
 
 .cur-val {
@@ -383,7 +390,7 @@ button {
   width: 54px;
   height: 54px;
   border-radius: 16px;
-  background: linear-gradient(#9c5cff, #6a2ae0);
+  background: linear-gradient(#9a66e0, #8048cf);
   border: 3px solid #fff;
   box-shadow: 0 4px 0 var(--purple-deep);
   display: flex;
@@ -408,7 +415,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(46, 15, 115, 0.35);
+  background: rgba(62, 36, 102, 0.35);
   border-radius: 14px;
   padding: 4px 2px 3px;
   cursor: pointer;
@@ -417,7 +424,7 @@ button {
 .offer svg {
   width: 42px;
   height: 42px;
-  filter: drop-shadow(0 2px 0 rgba(43, 20, 87, 0.5));
+  filter: drop-shadow(0 2px 0 rgba(62, 36, 102, 0.5));
 }
 
 .offer-label {
@@ -472,7 +479,7 @@ button {
   padding: 4px 0 6px;
   border-radius: 16px;
   background: linear-gradient(#8f63e8, #5a33c4);
-  border: 3px solid #ff9b3d;
+  border: 3px solid #5c3593;
   box-shadow: 0 4px 0 var(--purple-deep);
 }
 
@@ -500,7 +507,7 @@ button {
 }
 
 .finder.active {
-  border-color: #3bd65a;
+  border-color: #4bb710;
 }
 
 .timer-card {
@@ -517,7 +524,7 @@ button {
   height: 56px;
   border-radius: 14px;
   background: linear-gradient(#ffe7f3, #ffb3d6);
-  border: 3px solid #ff5fa8;
+  border: 3px solid #ff5fa2;
   box-shadow: 0 3px 0 var(--purple-deep);
   display: flex;
   align-items: center;
@@ -542,18 +549,18 @@ button {
 }
 
 .timer-card.vip .tc-face {
-  background: linear-gradient(#fff6c8, #ffd23a);
-  border-color: #e68600;
+  background: linear-gradient(#fff6c8, #fecc06);
+  border-color: #c77f00;
 }
 
 .timer-card.boost .tc-face {
   background: linear-gradient(#d9f7ff, #6fd3ff);
-  border-color: #1464cc;
+  border-color: #1c6fc4;
 }
 
 .timer-card.helper .tc-face {
-  background: linear-gradient(#fff6c8, #ffc42e);
-  border-color: #e68600;
+  background: linear-gradient(#fff6c8, #f8aa16);
+  border-color: #c77f00;
 }
 
 .quest-btn {
@@ -581,8 +588,8 @@ button {
   gap: 8px;
   padding: 6px 14px 6px 8px;
   border-radius: 18px;
-  background: rgba(46, 15, 115, 0.85);
-  border: 3px solid #ffd23a;
+  background: rgba(62, 36, 102, 0.85);
+  border: 3px solid #fecc06;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
   font-family: var(--display);
   font-size: 15px;
@@ -605,7 +612,7 @@ button {
 }
 
 .task-banner .tb-prog {
-  color: #ffd23a;
+  color: #fecc06;
   margin-left: 4px;
 }
 
@@ -618,7 +625,7 @@ button {
   max-width: min(86vw, 420px);
   padding: 8px 16px;
   border-radius: 16px;
-  background: rgba(46, 15, 115, 0.78);
+  background: rgba(62, 36, 102, 0.78);
   font-family: var(--display);
   font-size: 16px;
   line-height: 1.2;
@@ -642,8 +649,9 @@ button {
   height: calc(var(--tab-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   display: flex;
-  background: linear-gradient(#8b45ff, #6325d6);
-  border-top: 4px solid #ff9b3d;
+  background: var(--purple);
+  border-top: 3px solid var(--purple-dark);
+  box-shadow: 0 -2px 0 rgba(249, 250, 247, 0.35);
 }
 
 .tab {
@@ -654,7 +662,7 @@ button {
   align-items: center;
   justify-content: center;
   background: none;
-  border-right: 2px solid rgba(46, 15, 115, 0.35);
+  border-right: 2px solid var(--purple-dark);
   padding: 0;
 }
 
@@ -665,7 +673,7 @@ button {
 .tab svg {
   width: 40px;
   height: 40px;
-  filter: drop-shadow(0 3px 0 rgba(43, 20, 87, 0.45));
+  filter: drop-shadow(0 3px 0 rgba(62, 36, 102, 0.45));
   transition: transform 0.15s;
 }
 
@@ -675,7 +683,16 @@ button {
 }
 
 .tab.active {
-  background: linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
+  background: var(--purple-active);
+  box-shadow: inset 0 0 14px var(--purple-light);
+  color: var(--purple-dark);
+}
+
+.tab.active span {
+  color: var(--purple-dark);
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+  paint-order: normal;
 }
 
 .tab.active svg {
@@ -735,7 +752,7 @@ button {
   border-radius: 19px;
   background: #fff;
   border: 3px solid var(--outline);
-  box-shadow: 0 3px 0 rgba(43, 20, 87, 0.35);
+  box-shadow: 0 3px 0 rgba(62, 36, 102, 0.35);
   font-family: var(--display);
   font-size: 15px;
   color: var(--text-dark);
@@ -767,12 +784,12 @@ button {
 
 .bubble.vip {
   background: #fff3b8;
-  border-color: #e68600;
+  border-color: #c77f00;
 }
 
 .bubble.special {
   background: #ffe7f3;
-  border-color: #ff5fa8;
+  border-color: #ff5fa2;
 }
 
 .ring {
@@ -786,11 +803,11 @@ button {
 }
 
 .ring .bg {
-  stroke: rgba(43, 20, 87, 0.45);
+  stroke: rgba(62, 36, 102, 0.45);
 }
 
 .ring .fg {
-  stroke: #7cf08a;
+  stroke: #a8e05a;
   stroke-linecap: round;
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
@@ -823,7 +840,7 @@ button {
   gap: 2px;
   padding: 2px 8px 2px 4px;
   border-radius: 12px;
-  background: rgba(46, 15, 115, 0.8);
+  background: rgba(62, 36, 102, 0.8);
   border: 2px solid #fff;
   font-family: var(--display);
   font-size: 14px;
@@ -843,7 +860,7 @@ button {
   font-size: 13px;
   padding: 1px 7px;
   border-radius: 10px;
-  background: rgba(46, 15, 115, 0.8);
+  background: rgba(62, 36, 102, 0.8);
 }
 
 /* ------------------------------------------------------------ Toasts */
@@ -863,7 +880,7 @@ button {
 .toast {
   padding: 7px 16px;
   border-radius: 16px;
-  background: rgba(46, 15, 115, 0.9);
+  background: rgba(62, 36, 102, 0.9);
   border: 2.5px solid #fff;
   font-family: var(--display);
   font-size: 16px;
@@ -922,7 +939,7 @@ button {
   max-height: calc(100% - 20px);
   overflow-y: auto;
   border-radius: 26px;
-  background: linear-gradient(#8b45ff, #5a22c9);
+  background: linear-gradient(#8f58d8, #5a22c9);
   border: 4px solid #fff;
   box-shadow:
     0 8px 0 var(--purple-deep),
@@ -953,7 +970,7 @@ button {
   font-family: var(--display);
   font-weight: 400;
   font-size: 17px;
-  color: #ffd23a;
+  color: #fecc06;
   letter-spacing: 1px;
 }
 
@@ -986,15 +1003,15 @@ button {
   padding: 10px 18px 12px;
   border-radius: 16px;
   font-size: 19px;
-  background: linear-gradient(#6ef07e, #28b845);
+  background: linear-gradient(#92d535, #4bb710);
   border: 3px solid #fff;
-  box-shadow: 0 5px 0 #157a2c;
+  box-shadow: 0 5px 0 #2f7e08;
   margin: 6px;
 }
 
 .btn:active {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #157a2c;
+  box-shadow: 0 2px 0 #2f7e08;
 }
 
 .btn svg {
@@ -1003,8 +1020,8 @@ button {
 }
 
 .btn.gem {
-  background: linear-gradient(#72c6ff, #2c83e6);
-  box-shadow: 0 5px 0 #13549e;
+  background: linear-gradient(#6cbcff, #339eff);
+  box-shadow: 0 5px 0 #1c6fc4;
 }
 
 .btn.orange {
@@ -1013,8 +1030,8 @@ button {
 }
 
 .btn.red {
-  background: linear-gradient(#ff7a7a, #e8303f);
-  box-shadow: 0 5px 0 #9c1622;
+  background: linear-gradient(#ff6a5c, #ff2b1d);
+  box-shadow: 0 5px 0 #a8160c;
 }
 
 .btn.small {
@@ -1109,7 +1126,7 @@ button {
   min-width: 70px;
   padding: 8px 6px;
   border-radius: 16px;
-  background: rgba(46, 15, 115, 0.45);
+  background: rgba(62, 36, 102, 0.45);
   font-family: var(--display);
   font-size: 20px;
 }
@@ -1141,7 +1158,7 @@ button {
 
 .design.deluxe {
   background: linear-gradient(#fff4c8, #ffe07a);
-  border-color: #ffb02e;
+  border-color: #f7ca11;
 }
 
 .design .sw {
@@ -1200,7 +1217,7 @@ button {
   z-index: 10;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(#6a2ae0, #3a138f);
+  background: linear-gradient(#8048cf, #3a138f);
   animation: slide 0.25s ease-out;
 }
 
@@ -1217,7 +1234,7 @@ button {
   font-family: var(--display);
   font-size: 26px;
   letter-spacing: 1px;
-  background: rgba(46, 15, 115, 0.55);
+  background: rgba(62, 36, 102, 0.55);
   border-bottom: 3px solid rgba(255, 255, 255, 0.25);
   position: relative;
 }
@@ -1297,7 +1314,7 @@ button {
 .prog > i {
   position: absolute;
   inset: 0 auto 0 0;
-  background: linear-gradient(#8cf07c, #36c43f);
+  background: linear-gradient(#92d535, #4bb710);
 }
 
 .prog > span {
@@ -1307,7 +1324,7 @@ button {
   font-weight: 700;
   line-height: 16px;
   text-align: center;
-  color: #2b1457;
+  color: #3e2466;
 }
 
 .stat-grid {
@@ -1321,7 +1338,7 @@ button {
 .stat-box {
   padding: 10px;
   border-radius: 16px;
-  background: rgba(46, 15, 115, 0.5);
+  background: rgba(62, 36, 102, 0.5);
   text-align: center;
 }
 
@@ -1342,7 +1359,7 @@ button {
   margin: 16px auto 8px;
   font-family: var(--display);
   font-size: 18px;
-  color: #ffd23a;
+  color: #fecc06;
 }
 
 /* Weltkarte */
@@ -1374,13 +1391,13 @@ button {
 .map-node svg {
   width: 46px;
   height: 46px;
-  filter: drop-shadow(0 3px 0 rgba(43, 20, 87, 0.5));
+  filter: drop-shadow(0 3px 0 rgba(62, 36, 102, 0.5));
 }
 
 .map-node .mn-name {
   padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(46, 15, 115, 0.8);
+  background: rgba(62, 36, 102, 0.8);
   margin-top: 2px;
 }
 
@@ -1419,7 +1436,7 @@ button {
   width: 58px;
   height: 32px;
   border-radius: 16px;
-  background: rgba(46, 15, 115, 0.7);
+  background: rgba(62, 36, 102, 0.7);
   border: 3px solid #fff;
   position: relative;
   flex: 0 0 auto;
@@ -1590,6 +1607,6 @@ button {
 button:focus-visible,
 .offer:focus-visible,
 .cur:focus-visible {
-  outline: 3px solid #ffd23a;
+  outline: 3px solid #fecc06;
   outline-offset: 2px;
 }
